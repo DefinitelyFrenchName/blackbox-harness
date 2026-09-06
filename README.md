@@ -34,7 +34,7 @@ for the wrong reason is a failure.
 ## Quick start
 
 ```sh
-git clone … ~/Developer/blackbox-harness
+git clone https://github.com/DefinitelyFrenchName/blackbox-harness ~/Developer/blackbox-harness
 cd ~/Developer/blackbox-harness
 bin/bbh selftest                      # the harness's own gates, ~10 s
 cd example && ../bin/bbh run-static   # the example consumer, GREEN
