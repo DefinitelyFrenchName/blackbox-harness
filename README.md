@@ -36,7 +36,7 @@ for the wrong reason is a failure.
 ```sh
 git clone https://github.com/DefinitelyFrenchName/blackbox-harness ~/Developer/blackbox-harness
 cd ~/Developer/blackbox-harness
-bin/bbh selftest                      # the harness's own gates, ~10 s
+bin/bbh selftest                      # the harness's own gates, ~1 min (BBH_FIDELITY_F5=1: every masked spec, ~4 min)
 cd example && ../bin/bbh run-static   # the example consumer, GREEN
 FAKE_ROOT=. ../bin/bbh run-static     # …with its static tier
 ../bin/bbh doctor --config bbh.toml   # can this host run it?
@@ -72,11 +72,12 @@ changes, grep for the claim.
 
 ```
 bin/        bbh (dispatcher), bbh-run-static, bbh-classify, bbh-doctor
-lib/sh/     classify.sh registry.sh config.sh prologue.sh
-lib/py/bbh/ config.py toml_subset.py tier.py demand_after_trap.py
-selftest/   run.sh + test_*.sh
+lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh
+lib/py/bbh/ config.py toml_subset.py tier.py demand_after_trap.py thresholds.py logfmt.py
+            compare_flicker.py compare_window.py compare_composite.py check_diverge.py describe_masked_shape.py
+selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks)
 example/    a complete tiny consumer (+ consumers/ for real ones)
-docs/       gate_contract.md config.md
+docs/       gate_contract.md config.md method/oracle_classes.md
 ```
 
 License: GPL-3.0 (the lineage's).
