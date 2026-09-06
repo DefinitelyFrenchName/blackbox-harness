@@ -1,0 +1,207 @@
+#!/bin/sh
+# bbh-run-static — THE PRE-COMMIT GATE CHAIN of a consumer project. One
+# command, every gate that does not need an instrument (an emulator, a
+# simulator, a driver).
+#
+# Lineage: VampireSaved's tests/run_all_static.sh (14z-94, GitHub #30 there).
+# WHY IT EXISTS: a suite nobody invokes cannot halt forward work. That project
+# had no CI and 101 of its 130 gates had no shell caller; one of them sat RED
+# for 11 days while the law cited it as a guarantee. Automated here is the
+# instrument-free set — the gates cheap enough to run before every commit.
+#
+# THREE VERDICTS, AND SKIP IS NOT PASS. A gate whose inputs are absent prints
+# `SKIP: <reason>` and exits 0. Counting that as a pass is how a clean
+# checkout reports green while asserting nothing, so SKIP is counted and
+# printed separately, and `--strict` makes it fatal. The classifier is
+# lib/sh/classify.sh, one copy for every runner.
+#
+# Usage:
+#   bbh-run-static [--config bbh.toml]        portable tier only (no inputs)
+#   <NEEDS_ENV>=... bbh-run-static            portable + static tiers
+#   ... --strict                              SKIP is a failure too
+#   ... --list                                print the registry and exit
+#   ... --tier portable|static                one tier only
+#
+# The config names the gates dir and the two registries ([registries]
+# portable / static), and `static_needs_env` — the variable (default ROMDIR)
+# whose presence enables the static tier. A gate that is instrument-free and
+# in NEITHER registry is reported as UNREGISTERED — that check is the actual
+# anti-orphan mechanism (lib/py/bbh/tier.py), and without it this script
+# would simply become a new, smaller thing to forget to update.
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/config.sh"
+. "$BBH_HOME/lib/sh/classify.sh"
+. "$BBH_HOME/lib/sh/registry.sh"
+
+CONFIG=""; STRICT=0; TIER=all; LIST=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --config) shift; CONFIG="${1:?--config needs a file}" ;;
+    --strict) STRICT=1 ;;
+    --list)   LIST=1 ;;
+    --tier)   shift; TIER="${1:?--tier needs portable|static|all}" ;;
+    -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
+    *) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+bbh_config_init "$CONFIG"
+bbh_classify_env
+GATES_DIR="$(bbh_cfg project.gates_dir)"
+REG_PORTABLE="$(bbh_cfg registries.portable)"
+REG_STATIC="$(bbh_cfg registries.static)"
+NEEDS_ENV="$(bbh_cfg registries.static_needs_env "")"
+WORD="$(bbh_cfg project.instrument_word)"
+
+# The input variable must be ABSOLUTE for the gates: a gate that resolves it
+# from a DIFFERENT working directory than the caller's (a symlink into it from
+# a temp dir, an overlay it cd's into) dangles on a relative path. Measured in
+# the lineage: 2 of 3 "failures" that looked like a broken suite. Canonicalise
+# at the entrance, BEFORE the cd below, so the documented pre-commit command
+# is robust to how the caller spells it.
+if [ -n "$NEEDS_ENV" ]; then
+    eval "_needs_val=\${$NEEDS_ENV:-}"
+    if [ -n "$_needs_val" ]; then
+        _abs="$(CDPATH= cd "$_needs_val" && pwd)" || {
+            echo "$NEEDS_ENV '$_needs_val' does not resolve from $(pwd)" >&2; exit 2; }
+        eval "$NEEDS_ENV=\"\$_abs\""
+        export "$NEEDS_ENV"
+    fi
+fi
+cd "$BBH_ROOT"
+
+PORTABLE="$(bbh_read_reg "$REG_PORTABLE")"
+STATIC="$(bbh_read_reg "$REG_STATIC")"
+
+if [ "$LIST" = 1 ]; then
+    echo "portable ($(bbh_count "$PORTABLE")):"
+    printf '%s\n' "$PORTABLE" | awk 'NF{print "  " $0}'
+    echo "static ($(bbh_count "$STATIC")):"
+    printf '%s\n' "$STATIC" | awk 'NF{print "  " $0}'
+    exit 0
+fi
+
+WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT INT TERM
+n_pass=0; n_skip=0; n_fail=0; n_miss=0
+failed=""; skipped=""
+
+# WORKING-TREE SNAPSHOT. This is the PRE-COMMIT command, so it must not leave
+# the tree dirty — and in the lineage it did on the first full run: gates
+# built into tracked paths rather than a temp dir. A pre-commit check whose
+# own side effect is a diff will get its output ignored, so the run reports
+# it. Reported, not failed: the gates are correct, their output location is
+# not, and that is its own fix.
+tree_before=""
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    tree_before="$(git status --porcelain -- . 2>/dev/null | grep -v '^??' || true)"
+fi
+
+run_tier() {  # run_tier <label> <names>
+    _label="$1"; _names="$2"
+    [ -n "$_names" ] || return 0
+    echo "== $_label tier =="
+    for g in $_names; do
+        if [ ! -x "$GATES_DIR/$g.sh" ]; then
+            printf '  %-34s %s\n' "$g" "MISSING (registered but not executable)"
+            n_miss=$((n_miss + 1)); failed="$failed $g(missing)"
+            continue
+        fi
+        _t0=$(date +%s)
+        # </dev/null: a gate that reads stdin otherwise swallows the rest of
+        # this loop's input. Paid for once — a 32-entry run became 28 silently.
+        "$GATES_DIR/$g.sh" </dev/null > "$WORK/$g.out" 2>&1 && _st=0 || _st=$?
+        _t1=$(date +%s)
+        _dur=$((_t1 - _t0))
+        bbh_classify "$_st" "$WORK/$g.out" 58
+        case "$BBH_VERDICT" in
+        TIMEOUT)
+            printf '  %-34s TIMEOUT %3ss  (exit %s)\n' "$g" "$_dur" "$_st"
+            n_fail=$((n_fail + 1)); failed="$failed $g" ;;
+        FAIL)
+            if [ "$_st" != 0 ]; then
+                printf '  %-34s FAIL  %3ss  (exit %s)\n' "$g" "$_dur" "$_st"
+            else
+                printf '  %-34s FAIL  %3ss  (exit 0 after a shell error)\n' "$g" "$_dur"
+            fi
+            # FAIL_TAIL: how much of a failing gate's output to show (default
+            # from the config; a red read remotely needs the section that
+            # failed, not the last four lines of its controls).
+            tail -"${FAIL_TAIL:-${BBH_CLASSIFY_FAIL_TAIL:-4}}" "$WORK/$g.out" | sed 's/^/        | /'
+            n_fail=$((n_fail + 1)); failed="$failed $g" ;;
+        SKIP)
+            printf '  %-34s SKIP  %3ss  %s\n' "$g" "$_dur" "$BBH_DETAIL"
+            n_skip=$((n_skip + 1)); skipped="$skipped $g" ;;
+        *)
+            printf '  %-34s PASS  %3ss\n' "$g" "$_dur"
+            n_pass=$((n_pass + 1)) ;;
+        esac
+    done
+}
+
+static_enabled() {
+    [ -z "$NEEDS_ENV" ] && return 0
+    eval "_v=\${$NEEDS_ENV:-}"
+    [ -n "$_v" ]
+}
+
+case "$TIER" in
+portable) run_tier portable "$PORTABLE" ;;
+static)   run_tier static   "$STATIC" ;;
+all)
+    run_tier portable "$PORTABLE"
+    if static_enabled; then
+        run_tier static "$STATIC"
+    else
+        echo "== static tier =="
+        echo "  NOT RUN: $NEEDS_ENV is unset. These gates read the reference set or"
+        echo "           a build dir. Set $NEEDS_ENV to include them."
+        n_skip=$((n_skip + $(bbh_count "$STATIC")))
+        skipped="$skipped <static-tier:$NEEDS_ENV-unset>"
+    fi ;;
+*) echo "bad --tier '$TIER'" >&2; exit 2 ;;
+esac
+
+echo
+echo "== registry coverage (the anti-orphan check) =="
+python3 -m bbh.tier "$BBH_CONFIG" --unregistered
+
+echo
+echo "== working tree (a pre-commit command must not dirty it) =="
+if [ -z "$tree_before" ] && ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "  note: not a git checkout — not checked"
+else
+    tree_after="$(git status --porcelain -- . 2>/dev/null | grep -v '^??' || true)"
+    if [ "$tree_before" = "$tree_after" ]; then
+        echo "  ok: no tracked file changed during the run"
+    else
+        # Diff via files: `grep -vxF "$multiline"` treats the string as a
+        # pattern LIST and a blank line in it matches everything.
+        printf '%s\n' "$tree_before" | awk 'NF' > "$WORK/tree_before.txt"
+        printf '%s\n' "$tree_after"  | awk 'NF' > "$WORK/tree_after.txt"
+        echo "  DIRTIED by the run — these gates write into TRACKED paths"
+        echo "  instead of a temp dir; restore with 'git checkout --' on them:"
+        diff "$WORK/tree_before.txt" "$WORK/tree_after.txt" \
+            | grep '^[<>]' | sed 's/^/      /' | head -12
+        echo "      (before: $(wc -l < "$WORK/tree_before.txt" | tr -d ' ') entries," \
+             "after: $(wc -l < "$WORK/tree_after.txt" | tr -d ' '))"
+    fi
+fi
+
+echo
+echo "======================================================================"
+printf 'PASS %-4s  SKIP %-4s  FAIL %-4s  MISSING %s\n' \
+    "$n_pass" "$n_skip" "$n_fail" "$n_miss"
+[ -n "$skipped" ] && echo "skipped:$skipped"
+[ -n "$failed" ]  && echo "failed: $failed"
+
+rc=0
+[ "$n_fail" = 0 ] && [ "$n_miss" = 0 ] || rc=1
+if [ "$STRICT" = 1 ] && [ "$n_skip" != 0 ]; then
+    echo "--strict: SKIP counts as failure (a skipped gate asserts NOTHING)"
+    rc=1
+fi
+[ "$rc" = 0 ] && echo "GREEN — every registered $WORD-free gate passed." \
+              || echo "NOT GREEN — see above. Rule 6: fixing this is the only task."
+exit $rc

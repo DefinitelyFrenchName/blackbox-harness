@@ -1,0 +1,34 @@
+# bbh.toml — the EXAMPLE CONSUMER's config. Every key the H1 slice reads,
+# with the value this tiny project wants; a key left out takes the default
+# in lib/py/bbh/config.py (docs/config.md lists them with their origin).
+# Paths are relative to THIS file's directory unless [project].root moves
+# the consumer root elsewhere.
+
+[project]
+root = "."
+gates_dir = "tests"
+gate_glob = "*.sh"
+lib_dir = "tests/lib"
+runner_prefixes = ["run_"]
+manual_suffixes = ["_soak"]
+instrument_word = "driver"
+
+[registries]
+portable = "tests/ci_portable.txt"
+static = "tests/ci_static.txt"
+# the static tier runs only when this variable is set (the reference
+# inputs it names must be present); empty = the static tier always runs
+static_needs_env = "FAKE_ROOT"
+
+[tier]
+# a gate matching any of these (comments stripped), or sourcing a lib that
+# does, NEEDS THE DRIVER and belongs to neither plain registry
+patterns = ['fakesys\.py', 'drivers/fake\.sh', 'FAKE_BIN']
+source_regex = '^\s*\.\s+"?\$(?:REPO|\{REPO\})"?/(tests/lib/[a-z0-9_]+\.sh)'
+source_depth = 2
+
+[classify]
+skip_regex = '^ *SKIP'
+shell_error_regex = '\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: '
+timeout_exits = [124, 137]
+fail_tail = 4

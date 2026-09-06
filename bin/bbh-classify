@@ -1,0 +1,27 @@
+#!/bin/sh
+# bbh-classify — the verdict classifier as a command, for scripts and for a
+# human checking what a runner would say about one gate's run.
+#
+# Usage:
+#   bbh-classify <exit-status> <logfile> [--config bbh.toml] [--width N]
+# Prints `<VERDICT>\t<detail>` (PASS | SKIP | FAIL | TIMEOUT) and exits 0.
+# Without --config the classifier's built-in defaults apply.
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/config.sh"
+. "$BBH_HOME/lib/sh/classify.sh"
+
+[ $# -ge 2 ] || { sed -n '2,9p' "$0"; exit 2; }
+ST="$1"; LOG="$2"; shift 2
+W=90
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --config) shift; bbh_config_init "${1:?--config needs a file}"; bbh_classify_env ;;
+    --width)  shift; W="${1:?--width needs N}" ;;
+    *) echo "unknown argument '$1'" >&2; exit 2 ;;
+    esac
+    shift
+done
+[ -f "$LOG" ] || { echo "bbh-classify: no such log '$LOG'" >&2; exit 2; }
+bbh_classify "$ST" "$LOG" "$W"
+printf '%s\t%s\n' "$BBH_VERDICT" "$BBH_DETAIL"

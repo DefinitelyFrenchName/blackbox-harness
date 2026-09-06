@@ -1,0 +1,2 @@
+# tests/ci_static.txt — gates that need the reference input (FAKE_ROOT) but no driver.
+g_static_pass

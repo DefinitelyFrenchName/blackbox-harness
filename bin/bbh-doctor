@@ -1,0 +1,46 @@
+#!/bin/sh
+# bbh-doctor — can this host run the harness, and does the consumer config
+# load? Prints one line per check; exits 1 on the first hard failure.
+#
+# Usage: bbh-doctor [--config bbh.toml]
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/config.sh"
+rc=0
+ok()   { printf '  ok    %s\n' "$1"; }
+note() { printf '  note  %s\n' "$1"; }
+bad()  { printf '  FAIL  %s\n' "$1"; rc=1; }
+
+echo "== bbh doctor =="
+if command -v python3 >/dev/null 2>&1; then
+    v="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+    case "$v" in 3.[0-7]|3.[0-7].*) bad "python3 $v — 3.8+ needed" ;; *) ok "python3 $v" ;; esac
+    if python3 -c 'import tomllib' 2>/dev/null; then ok "tomllib present (the subset parser is cross-checked against it)"
+    else note "no tomllib (python < 3.11): the subset parser runs unchecked on this host — selftest/test_config.sh reports its agreement section 'not run'"; fi
+else
+    bad "python3 not found"
+fi
+if command -v timeout >/dev/null 2>&1; then ok "timeout(1): $(command -v timeout)"
+elif command -v gtimeout >/dev/null 2>&1; then ok "gtimeout(1): $(command -v gtimeout) (the sweep runner uses it)"
+else note "no timeout(1): the sweep runner (H4) will run gates uncapped"; fi
+command -v git >/dev/null 2>&1 && ok "git: $(git --version | head -1)" || note "no git: the working-tree snapshot is skipped"
+command -v lua >/dev/null 2>&1 && ok "lua: $(command -v lua)" || note "no standalone lua: the .rpl parser equality selftest (H6) SKIPs"
+sh -c ': "${BBH_DOCTOR_PROBE:?probe}"' >/dev/null 2>&1 && bad "sh accepted an unset demand" || ok "sh refuses an unset \${VAR:?} demand (exit $?)"
+
+CONFIG="${2:-}"
+[ "${1:-}" = "--config" ] && CONFIG="$2"
+if [ -n "$CONFIG" ] || [ -f "${BBH_CONFIG:-bbh.toml}" ]; then
+    bbh_config_init "$CONFIG"
+    if python3 -m bbh.config "$BBH_CONFIG" dump >/dev/null 2>"$BBH_HOME/.doctor_err"; then
+        ok "config loads: $BBH_CONFIG"
+    else
+        bad "config does not load: $(cat "$BBH_HOME/.doctor_err")"
+    fi
+    rm -f "$BBH_HOME/.doctor_err"
+    g="$(bbh_cfg project.gates_dir)"
+    [ -d "$BBH_ROOT/$g" ] && ok "gates dir: $g" || bad "gates dir '$g' not found under $BBH_ROOT"
+else
+    note "no config given and no ./bbh.toml — consumer checks skipped"
+fi
+[ "$rc" = 0 ] && echo "PASS" || echo "FAIL"
+exit $rc

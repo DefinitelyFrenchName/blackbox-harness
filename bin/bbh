@@ -1,0 +1,31 @@
+#!/bin/sh
+# bbh — the black-box harness's one entry point.
+#
+# Usage:
+#   bbh run-static [args]         the pre-commit chain          (bin/bbh-run-static)
+#   bbh classify <exit> <log>     one verdict                    (bin/bbh-classify)
+#   bbh tier <bbh.toml> [--list|--unregistered]                  (lib/py/bbh/tier.py)
+#   bbh config <bbh.toml> get <section.key> [--default V] | dump (lib/py/bbh/config.py)
+#   bbh demand-after-trap <gates-dir> [--lib d] [--skip name]    (lib/py/bbh/demand_after_trap.py)
+#   bbh doctor [--config bbh.toml]  is this host able to run the harness?
+#   bbh selftest                  the harness's own gate chain (selftest/run.sh)
+#
+# Every subcommand finds the harness from THIS file's location, so the
+# harness can live anywhere; the consumer is found from --config / $BBH_CONFIG
+# / ./bbh.toml. Slices H2+ add run-suite, run-sweep and the comparators.
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+[ $# -ge 1 ] || { sed -n '2,14p' "$0"; exit 2; }
+cmd="$1"; shift
+PYTHONPATH="$BBH_HOME/lib/py${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH
+case "$cmd" in
+run-static)        exec "$BBH_HOME/bin/bbh-run-static" "$@" ;;
+classify)          exec "$BBH_HOME/bin/bbh-classify" "$@" ;;
+tier)              exec python3 -m bbh.tier "$@" ;;
+config)            exec python3 -m bbh.config "$@" ;;
+demand-after-trap) exec python3 -m bbh.demand_after_trap "$@" ;;
+doctor)            exec "$BBH_HOME/bin/bbh-doctor" "$@" ;;
+selftest)          exec "$BBH_HOME/selftest/run.sh" "$@" ;;
+-h|--help|help)    sed -n '2,14p' "$0"; exit 0 ;;
+*) echo "bbh: unknown command '$cmd' (try bbh help)" >&2; exit 2 ;;
+esac

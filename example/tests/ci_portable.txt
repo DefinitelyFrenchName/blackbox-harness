@@ -1,0 +1,8 @@
+# tests/ci_portable.txt — the gates a CLEAN CHECKOUT can run (no inputs).
+# THE JOB MUST FAIL ON SKIP under --strict: a run of 3% of the gates that
+# reports green is its own false green.
+g_pass
+g_skip
+g_skip_indent
+g_prose
+g_segv_prose
