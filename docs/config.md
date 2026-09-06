@@ -60,6 +60,27 @@ a literal the lineage carried in source that is a consumer VALUE.
 | `timeout_exits` | `[124, 137]` | code | exits read as TIMEOUT (the timeout wrapper's) |
 | `fail_tail` | `4` | config | lines of a failing gate's output shown (`FAIL_TAIL` env overrides) |
 
-Sections `[sweep]`, `[suite]`, `[thresholds]`, `[fingerprint]`, `[fields]`,
-`[gate_header]`, `[ref_rot]`, `[provenance]`, `[machine]` arrive with slices
-H2-H7 and are documented here as they land.
+## `[thresholds]` — the comparison classes' numbers (H2)
+
+Read by `lib/py/bbh/thresholds.py` through `BBH_CONFIG` and nowhere else;
+every comparator and the proposer import from there. These are a
+consumer's RATIFIED comparison policy, not a tuning knob: changing one is a
+reviewed edit of the config.
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `flicker_max` | `2` | config (policy) | a divergent run this short or shorter is a FLICKER frame |
+| `reconverge` | `60` | config (policy) | identical frames required after the last divergence (the non-propagation proof; intra-mechanism) |
+| `flicker_max_total` | `8` | config (policy) | the cap on a flicker INVENTORY; never applied to a window run |
+
+## `[suite]` — the expectation tree (H2 reads three keys; H3 the rest)
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `replays_dir` | `"tests/replays"` | config | where `<name>.rpl` lives; `enumerate_expectations` ignores a stem with no replay |
+| `expected_dir` | `"tests/expected"` | config | the expectation tree: `<set>/<name>.{masked,skip,sha1,pending}`, `<set>/mask`, `<basis>/MASK`, `<basis>/logs/<name>.log` |
+| `mask_default` | `"043c-043d,4182-41a2,7f00-8000"` | config | the mask a set without its own `mask` file runs under (offsets from the machine profile's RAM window base); exported to `masked_compare.sh` as `BBH_MASK_DEFAULT` |
+
+Sections `[sweep]`, `[fingerprint]`, `[fields]`, `[gate_header]`,
+`[ref_rot]`, `[provenance]`, `[machine]` arrive with slices H3-H7 and are
+documented here as they land.

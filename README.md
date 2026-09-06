@@ -18,7 +18,8 @@ survived is here; what did not stayed there.
 | **the tier classifier** (`bbh tier`) | which gates reach an instrument — transitively, through sourced libs — so none falls between the runners | H1 |
 | **the demand-after-trap lint** (`bbh demand-after-trap`) | the `${VAR:?}`-after-`trap … EXIT` shape that exits 0 on macOS bash 3.2 | H1 |
 | **the gate contract and prologue** (`docs/gate_contract.md`, `lib/sh/prologue.sh`) | what a gate looks like so the runners can read it | H1 |
-| the comparators and the masked vocabulary (exact / flicker / diverge / window / composite) | H2 |
+| **the comparison classes** (`lib/py/bbh/compare_*.py`, `check_diverge.py`, `describe_masked_shape.py`, `docs/method/oracle_classes.md`) | exact / flicker-tolerated / frozen first-divergence / bounded re-convergent window / composite — the thresholds declared ONCE (`thresholds.py`, consumer-overridable), the log grammar parsed once (`logfmt.py`), a proposer that cannot disagree with the enforcers | H2 |
+| **the masked vocabulary** (`lib/sh/masked_compare.sh`, `enumerate_expectations.sh`) | `<class> <baseset> <args>` spec lines dispatched to the right checker with verdict text frozen; the baseset-vs-mask guard; every expectation KIND named | H2 |
 | fingerprint → expectation-set dispatch, the suite runner, the fake driver | H3 |
 | the sweep runner (lanes, scope, cadence, per-row timeouts, `--jobs`, `--resume`) | H4 |
 | expectation provenance, header defaults, reference rot, the gate index | H5 |

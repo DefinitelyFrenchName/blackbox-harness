@@ -7,6 +7,8 @@
 #   bbh tier <bbh.toml> [--list|--unregistered]                  (lib/py/bbh/tier.py)
 #   bbh config <bbh.toml> get <section.key> [--default V] | dump (lib/py/bbh/config.py)
 #   bbh demand-after-trap <gates-dir> [--lib d] [--skip name]    (lib/py/bbh/demand_after_trap.py)
+#   bbh compare-flicker | compare-window | compare-composite | check-diverge | describe-shape …
+#                                 the comparison classes (lib/py/bbh/compare_*.py; H2)
 #   bbh doctor [--config bbh.toml]  is this host able to run the harness?
 #   bbh selftest                  the harness's own gate chain (selftest/run.sh)
 #
@@ -24,6 +26,11 @@ classify)          exec "$BBH_HOME/bin/bbh-classify" "$@" ;;
 tier)              exec python3 -m bbh.tier "$@" ;;
 config)            exec python3 -m bbh.config "$@" ;;
 demand-after-trap) exec python3 -m bbh.demand_after_trap "$@" ;;
+compare-flicker)   exec python3 -m bbh.compare_flicker "$@" ;;
+compare-window)    exec python3 -m bbh.compare_window "$@" ;;
+compare-composite) exec python3 -m bbh.compare_composite "$@" ;;
+check-diverge)     exec python3 -m bbh.check_diverge "$@" ;;
+describe-shape)    exec python3 -m bbh.describe_masked_shape "$@" ;;
 doctor)            exec "$BBH_HOME/bin/bbh-doctor" "$@" ;;
 selftest)          exec "$BBH_HOME/selftest/run.sh" "$@" ;;
 -h|--help|help)    sed -n '2,14p' "$0"; exit 0 ;;

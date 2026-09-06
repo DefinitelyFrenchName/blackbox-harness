@@ -75,6 +75,35 @@ EOF
 un="$(python3 -m bbh.tier "$CFG" --unregistered)"
 [ "$un" = "  ok: every emulator-free gate is registered" ] && ok "F3c: --unregistered prints the lineage's ok line verbatim" || fail "F3c: '$un'"
 
+echo "== F5. the masked vocabulary: every .masked spec through BOTH implementations =="
+# Each spec is paired with a DIFFERENT set's frozen log of the same stem
+# (mostly FAIL verdicts, which is the point: the text and the class
+# arithmetic must match to the character), else with its own basis log.
+# BBH_FIDELITY_F5=<N> samples every Nth spec; the default 4 (~60 s) keeps
+# the routine gate short, and a slice's pre-commit runs 1 (all 1,891, ~4 min).
+step="${BBH_FIDELITY_F5:-4}"; n5=0; same5=0; diff5=0; k=0; t5=$(date +%s)
+for spec in "$V"/tests/expected/*/*.masked; do
+    k=$((k + 1)); [ $((k % step)) = 0 ] || continue
+    set5="$(dirname "$spec")"; name5="$(basename "$spec" .masked)"; text5="$(cat "$spec")"
+    base5="$(printf '%s' "$text5" | awk '{print $2}')"
+    cand=""
+    for d in "$V"/tests/expected/*/logs/"$name5".log "$V"/tests/expected/*/*/logs/"$name5".log; do
+        [ -f "$d" ] || continue
+        case "$d" in "$V/tests/expected/$base5/logs/"*) continue ;; esac
+        cand="$d"; break
+    done
+    [ -n "$cand" ] || cand="$V/tests/expected/$base5/logs/$name5.log"
+    [ -f "$cand" ] || continue
+    n5=$((n5 + 1))
+    a5="$(cd "$V" && REPO="$V" sh -c '. tests/lib/masked_compare.sh; m=$(masked_mask_for "$1"); masked_check "$1" "$2" "$3" "$m" "$4"; echo "rc=$?"' _ "$set5" "$name5" "$text5" "$cand" 2>&1)"
+    b5="$(sh -c '. "$BBH_HOME/lib/sh/masked_compare.sh"; m=$(masked_mask_for "$1"); masked_check "$1" "$2" "$3" "$m" "$4"; echo "rc=$?"' _ "$set5" "$name5" "$text5" "$cand" 2>&1)"
+    if [ "$a5" = "$b5" ]; then same5=$((same5 + 1)); else
+        diff5=$((diff5 + 1)); [ $diff5 -le 3 ] && { echo "  DIFF $spec vs $cand"; printf '%s\n' "$a5" | sed 's/^/        lineage| /'; printf '%s\n' "$b5" | sed 's/^/        bbh    | /'; }
+    fi
+done
+[ "$n5" -gt 0 ] && [ "$diff5" = 0 ] && ok "F5: $n5 spec(s) (every ${step}th), verdict text identical to the character, $(( $(date +%s) - t5 )) s" \
+    || fail "F5: $n5 specs, $diff5 differ"
+
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then
     (cd "$V" && sh tests/run_all_static.sh --tier portable 2>&1; echo "exit=$?") | norm > "$T/p_a.txt"

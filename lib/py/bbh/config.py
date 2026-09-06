@@ -42,6 +42,16 @@ DEFAULTS = {
         "source_regex": r'^\s*\.\s+"?\$(?:REPO|\{REPO\})"?/(tests/lib/[a-z0-9_]+\.sh)',
         "source_depth": 2,
     },
+    "thresholds": {
+        "flicker_max": 2,
+        "reconverge": 60,
+        "flicker_max_total": 8,
+    },
+    "suite": {
+        "replays_dir": "tests/replays",
+        "expected_dir": "tests/expected",
+        "mask_default": "043c-043d,4182-41a2,7f00-8000",
+    },
     "classify": {
         "skip_regex": r"^ *SKIP",
         "shell_error_regex": r"\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: ",
