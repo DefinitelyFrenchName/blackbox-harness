@@ -6,3 +6,4 @@ g_skip
 g_skip_indent
 g_prose
 g_segv_prose
+g_hygiene

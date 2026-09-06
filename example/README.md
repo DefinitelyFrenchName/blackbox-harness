@@ -49,6 +49,23 @@ FAKE_ROOT=. FAKE_ROMPATH=roms/base ../bin/bbh run-suite --freeze    # rewrites b
 ./make_expected.sh                                                   # the whole tree, from scratch, with its provenance
 ```
 
+## The hygiene checks, as a consumer runs them
+
+```sh
+FAKE_ROOT=. ../bin/bbh run-static                 # tests/g_hygiene.sh is one of the portable gates: it runs the four below
+../bin/bbh provenance --config bbh.toml          # expected/PROVENANCE.md: every file directly under expected/ has a row, every row a defined class
+../bin/bbh header-defaults --config bbh.toml     # every Usage/default line names the default the gate's code uses (g_suite: roms/build-a)
+../bin/bbh ref-rot --config bbh.toml             # the roms/… defaults exist and carry fake.02; currency reported
+../bin/bbh gate-index --config bbh.toml --check  # docs/gate_index.md is current (tests/gate_index.tsv is the family list)
+../bin/bbh gate-index --config bbh.toml          # …regenerate it after adding a gate (and add its family row)
+```
+
+Break one and watch it fire: rename `expected/registry.tsv`'s row away
+(`provenance` fails both ways), change `g_suite.sh`'s Usage line to
+`roms/build-z` (`header-defaults` names it; `--fix` repairs it), remove
+`fake.02` from a copy of an image and point a default at it (`ref-rot`:
+ROTTED), add a gate without a TSV row (`gate-index --check`: PROBLEM).
+
 ## What the fake machine is
 
 | feature (the ROM's `features=` line, or `FAKE_BUILD=`) | what it does | the class it produces |

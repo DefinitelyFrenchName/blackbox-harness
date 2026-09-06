@@ -25,7 +25,7 @@ survived is here; what did not stayed there.
 | **the driver contract and the fake driver** (`drivers/README.md`, `drivers/fake.sh`, `example/fakesys/fakesys.py`) | `<set> <replay> <out> [sandbox]` + the replay-family environment; a driver that cannot honour a variable REFUSES; a deterministic fake machine whose features produce every expectation class, so the whole chain runs without a ROM | H3 |
 | **the `.rpl` grammar** (`lib/py/bbh/rpl.py`, `bbh rpl`) | the replay parser, one copy on the python side (the Lua twin comes with H6) | H3 |
 | **the sweep runner** (`bbh run-sweep`) | every instrument-tier gate from the sweep registry, in lanes; the prereq lane first and serial, a red there stops the run; scope and cadence columns, `--freeze` naming what it dropped; `%PLACEHOLDER%` args and `VAR=value` environment; per-row timeouts; `--jobs` with per-slot scratch; `--resume`; the banner that IDENTIFIES the builds (fingerprinted) and the instruments; the anti-orphan check both ways | H4 |
-| expectation provenance, header defaults, reference rot, the gate index | H5 |
+| **expectation and gate hygiene** (`bbh provenance`, `bbh header-defaults`, `bbh ref-rot`, `bbh gate-index`; `lib/sh/shadow_tools.sh`, `lib/sh/accounting.sh`) | every frozen expectation file has a row in a register naming a CLOSED evidence class (a red gate is a question, and its first question is which side rests on a measurement); a gate's header names the default its CODE uses; a hard-coded path default that exists but is too old is ROTTED (absent is not rotted; currency is reported, never failed); the gate index is GENERATED from the headers and a family TSV, complete both ways; a perturbation control edits a shadow copy, never the tracked tool; a battery cannot print GREEN while a gate self-skipped — the one header parser (`gate_header.py`) under all of it | H5 |
 | the MAME Lua layer with machine profiles, the MAME / FBNeo drivers, recordings | H6 |
 | mapped-field comparison at anchors, dump completeness | H7 |
 
@@ -39,7 +39,7 @@ for the wrong reason is a failure.
 ```sh
 git clone https://github.com/DefinitelyFrenchName/blackbox-harness ~/Developer/blackbox-harness
 cd ~/Developer/blackbox-harness
-bin/bbh selftest                      # the harness's own gates, ~3 min (BBH_FIDELITY_F5=1: every masked spec, +3 min)
+bin/bbh selftest                      # the harness's own gates, ~3.5 min (BBH_FIDELITY_F5=1: every masked spec, +3 min)
 cd example && ../bin/bbh run-static   # the example consumer, GREEN
 FAKE_ROOT=. ../bin/bbh run-static     # …with its static tier
 FAKE_ROOT=. FAKE_ROMPATH=roms/build-a ../bin/bbh run-suite   # the replay suite on a fake build (example/README.md)
@@ -77,14 +77,15 @@ changes, grep for the claim.
 
 ```
 bin/        bbh (dispatcher), bbh-run-static, bbh-run-suite, bbh-run-sweep, bbh-classify, bbh-doctor
-lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh
+lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh shadow_tools.sh accounting.sh
 lib/py/bbh/ config.py toml_subset.py tier.py demand_after_trap.py thresholds.py logfmt.py fingerprint.py rpl.py
             compare_flicker.py compare_window.py compare_composite.py check_diverge.py describe_masked_shape.py
+            gate_header.py gen_gate_index.py header_defaults.py ref_rot.py provenance.py
 drivers/    README.md (THE DRIVER CONTRACT), fake.sh
-selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks F1/F3/F4/F5/F6/F7)
+selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks F1/F3/F4/F5/F6/F7/F9)
 example/    a complete tiny consumer: fakesys/ (the fake machine + ROM generator), roms/, replays/, expected/, tests/
             (+ consumers/ for real ones)
-docs/       gate_contract.md config.md method/oracle_classes.md
+docs/       gate_contract.md config.md hygiene.md method/oracle_classes.md
 ```
 
 License: GPL-3.0 (the lineage's).

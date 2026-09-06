@@ -1,0 +1,19 @@
+# tests/gate_index.tsv — every gate under tests/ and its FAMILY, the one
+# hand-maintained input of `bbh gate-index` (docs/gate_index.md is GENERATED
+# from this + the plain registries + each gate's own header).
+#
+# gate<TAB>family[<TAB>needs override][<TAB>since override]
+# Families are [gate_header].families in bbh.toml. COMPLETENESS is enforced
+# both ways by `bbh gate-index --check` (tests/g_hygiene.sh runs it): a new
+# gate without a row here fails; a row whose gate is gone fails.
+tests/g_driver_ok.sh	runner
+tests/g_needs_fake.sh	runner
+tests/g_pass.sh	classify
+tests/g_prose.sh	classify
+tests/g_segv_prose.sh	classify
+tests/g_skip.sh	classify
+tests/g_skip_indent.sh	classify
+tests/g_static_pass.sh	classify
+tests/g_suite.sh	suite
+tests/g_suite_refuses.sh	suite
+tests/g_hygiene.sh	hygiene

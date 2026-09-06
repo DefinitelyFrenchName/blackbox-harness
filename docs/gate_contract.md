@@ -50,13 +50,15 @@ example consumer's gates and the harness's own selftests pass it.
 ## 3. The header (line 2 is an API)
 
 Line 1 is `#!/bin/sh`. Line 2 is `# <name>.sh — <claim>`, and the header
-continues until the first bare `#` line. The gate index generator (H5) reads
-exactly that first paragraph as the gate's index sentence, so it is written
-as the CLAIM the gate locks, not as a description of its mechanics. A
-`Usage:` line names the gate's defaults, and the header-defaults check (H5)
-asserts every path default the header shows is one the CODE uses — a header
-that says `build/m11` while the code says `build/m21` is how a reader runs
-the wrong measurement.
+continues until the first bare `#` line. The gate index generator (`bbh
+gate-index`) reads exactly that first paragraph as the gate's index
+sentence, so it is written as the CLAIM the gate locks, not as a description
+of its mechanics. A `Usage:` line names the gate's defaults, and the
+header-defaults check (`bbh header-defaults`) asserts every path default the
+header shows is one the CODE uses — a header that says `build/m11` while the
+code says `build/m21` is how a reader runs the wrong measurement. The
+parser is one module, `lib/py/bbh/gate_header.py`; the checks that read
+the header are `docs/hygiene.md`.
 
 ## 4. The output (one verdict line of the gate's own)
 
@@ -75,8 +77,9 @@ they fit:
 1. **perturb one byte** — copy the artifact, flip one byte, re-run the
    comparator, require non-zero;
 2. **shadow copy of a tool with a line stripped** — a writable copy of the
-   tool in a throwaway root whose siblings are symlinks (`shadow_tools.sh`,
-   H5), so the perturbation never touches the tracked tree;
+   tool in a throwaway root whose siblings are symlinks
+   (`lib/sh/shadow_tools.sh`), so the perturbation never touches the
+   tracked tree;
 3. **a synthetic tree or a known-bad reference** — a fabricated input the
    checker must reject.
 

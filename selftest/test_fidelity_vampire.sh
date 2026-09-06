@@ -24,6 +24,11 @@
 #       every verdict line diffed (BBH_FIDELITY_F7=all: every set).
 #   F4  the sweep runner: --list (always) and --dry-run (with ROMDIR) over
 #       the lineage's whole registry through both runners, diffed.
+#   F9  the hygiene tools: header-defaults, gate-index (--check, and the
+#       rendered index against the committed file), provenance (the
+#       lineage gate's first two sections), ref-rot (the lineage gate's
+#       report) and demand-after-trap — the generic tool with the consumer
+#       config against the lineage's, full stdout + exit status diffed.
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.
@@ -241,6 +246,26 @@ if [ -n "${ROMDIR:-}" ] && [ -d "$ROMDIR" ]; then
 else
     echo "  (F4 --dry-run not run: set ROMDIR)"
 fi
+
+echo "== F9. the hygiene tools: the generic tool with the consumer config against the lineage's =="
+# Each pair: the lineage tool or gate over its own tree, the harness tool
+# with bbh.vampire.toml over the same tree; stdout + exit status diffed.
+# ROM-free: every one reads the tree, never an image's content (ref-rot
+# reads member NAMES of whatever build dirs are present — the same set on
+# both sides).
+f9_pair() {  # f9_pair <label> <lineage command> <harness command>
+    a9="$( (set +e; cd "$V" && sh -c "$2" 2>&1; echo "exit=$?") )"
+    b9="$( (set +e; cd "$V" && sh -c "$3" 2>&1; echo "exit=$?") )"
+    if [ "$a9" = "$b9" ]; then ok "F9 $1: identical ($(printf '%s\n' "$a9" | wc -l | tr -d ' ') lines, exit $(printf '%s\n' "$a9" | tail -1 | sed 's/exit=//'))"
+    else fail "F9 $1 differs:"; printf '%s\n' "$a9" > "$T/a9.txt"; printf '%s\n' "$b9" > "$T/b9.txt"; diff "$T/a9.txt" "$T/b9.txt" | head -12 | sed 's/^/        /'; fi
+}
+f9_pair header-defaults "python3 tools/audit_header_defaults.py" "$BBH_HOME/bin/bbh header-defaults --config $CFG"
+f9_pair "gate-index --check" "python3 tools/gen_gate_index.py --check" "$BBH_HOME/bin/bbh gate-index --config $CFG --check"
+"$BBH_HOME/bin/bbh" gate-index --config "$CFG" --stdout > "$T/gi9.md" 2>/dev/null || true
+cmp -s "$T/gi9.md" "$V/docs/project/gate_index.md" && ok "F9 gate-index render: the regenerated index is byte-identical to the lineage's committed file" || fail "F9 gate-index render differs from the committed file"
+f9_pair provenance "sh tests/test_expectation_provenance.sh | sed -n '/^== 1\./,/^== 3\./p' | sed '\$d'" "$BBH_HOME/bin/bbh provenance --config $CFG"
+f9_pair ref-rot "sh tests/test_build_ref_rot.sh | sed '\$d' | sed '\$d'; exit 0" "$BBH_HOME/bin/bbh ref-rot --config $CFG; exit 0"
+f9_pair demand-after-trap "sh tests/test_demand_after_trap.sh >/dev/null; echo checked" "$BBH_HOME/bin/bbh demand-after-trap tests --lib lib --skip test_demand_after_trap.sh; echo checked"
 
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then

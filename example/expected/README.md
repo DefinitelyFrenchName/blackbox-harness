@@ -16,6 +16,7 @@ frozen number is one `grep` away.
 | `attract/05_attract.diverge` | frozen first-divergence constant, unmasked | authored: `base 900` |
 | `build-a/*.masked`, `build-a/mask`, `build-a/06_other_set.skip` | the masked vocabulary | authored from `bbh describe-shape` over the measured pairs |
 | `build-b/` | the dual-key twin | a copy of `build-a/` |
+| `PROVENANCE.md` | the register `bbh provenance` keeps complete (the FILES directly under `expected/`, i.e. `registry.tsv`) | by hand, one row per file |
 
 The images `roms/hook` has NO row: it is the unregistered build the suite
 must refuse loudly (exit 2 from the fingerprint, `unregistered build

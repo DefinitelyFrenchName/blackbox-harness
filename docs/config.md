@@ -140,5 +140,78 @@ lane, scope and cadence columns are these keys.
 | `scratch_default` | `"vampire-saved-jtsim"` | config | under `${TMPDIR:-/tmp}` when the variable is unset |
 | `prereq_cite` | `"[CPE-24]"` | config | the citation in the prereq STOP text; `""` = none |
 
-Sections `[fields]`, `[gate_header]`, `[ref_rot]`, `[provenance]`,
-`[machine]` arrive with slices H5-H7 and are documented here as they land.
+## `[gate_header]` — THE HEADER CONTRACT and THE GATE INDEX (`bbh gate-index`, H5)
+
+Read by `lib/py/bbh/gate_header.py` (the one header parser) and
+`gen_gate_index.py`. A gate's header is every `#` line after the shebang;
+its FIRST PARAGRAPH (to the first bare `#`) opens `# <name>.sh — <claim>`
+and is the index sentence (`docs/gate_contract.md` §3).
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `title_sep_regex` | `\s*[—–-]+\s*` | code | what separates `<name>.sh` from the claim on line 2 |
+| `session_regex` | the lineage's (`14z-N`, `M2a`, `session N`, a date) | config | `since` = the first match in the whole header; group 1 is the token |
+| `duration_regex` | `~\s*(\d+(?:\.\d+)?)\s*(min\|s\b\|sec\|h\b\|hours?)` | code | the runtime a header quotes, appended to `needs` |
+| `index_out` | `"docs/project/gate_index.md"` | config | the GENERATED index; `--check` compares a regeneration against it |
+| `families_tsv` | `"tests/gate_index.tsv"` | config | `gate <TAB> family [<TAB> needs] [<TAB> since]` — the ONE hand-maintained input; complete both ways or `--check` fails |
+| `families` | the lineage's ten | config | `[[name, description], …]` in the order the index groups them; a TSV family not here is a PROBLEM |
+| `kinds` | `[["audit_","audit"],["run_","run"]]` | config | name prefix → `kind`; anything else is `test` |
+| `needs_instruments` | the lineage's five (`verilator`/`jtsim`/`simulator` → Verilator, `mame`, `fbneo`) | config | header keyword (matched lowercased) → the instrument named in a derived `needs` |
+| `needs_build_regex` | `build/\w\|build dir\|builddir\|<build>` | config | a header matching it needs "a build dir" |
+| `index_preamble` | the lineage's opening lines | config | the index's opening prose, one array item per line (this is the consumer's text: what the index is, how to regenerate it) |
+
+The tier labels are derived, not configured: the portable and static
+registries' file stems (`ci_portable`, `ci_static`) and
+`[project].instrument_word`; a static gate's derived `needs` is
+`[registries].static_needs_env`.
+
+## `[header_defaults]` — a header names the default its code uses (`bbh header-defaults`, H5)
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `token_regex` | `build/[A-Za-z0-9_]+` | config | what a path default looks like |
+| `claim_line_regex` | `usage\s*:\|defaults?\b` | code | a header line that presents itself as an invocation or a default — only those are checked |
+| `verbatim_regex` | `\(verbatim[;,)]` | code | opens an ARCHIVE block, exempt until the next bare `#` line |
+| `root_prefix_regex` | `(?:\$\{?REPO\}?/)?` | config | an optional root prefix before the token in a code default (`${1:-$REPO/build/x}`) |
+
+Backticked tokens and a token followed by `<` (a template) are exempt by
+code. `--fix` rewrites a mechanical mismatch when the code has exactly one
+default and refuses to guess otherwise.
+
+## `[ref_rot]` — a hard-coded path default must not have rotted (`bbh ref-rot`, H5)
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `token_regex` | `build/[a-z0-9_]+` | config | the default's shape in CODE (the lineage's header and code regexes differ; both are kept) |
+| `root_prefix_regex` | `(?:\$\{?REPO\}?/)?` | config | as above |
+| `rompath_suffix` | `"/rompath"` | config | the subdirectory a script dereferences to read the image; a default is judged only if `$VAR<suffix>` appears in the body or the default itself ends in it; `""` = the dir is the image dir |
+| `image_glob` | `"*.zip"` | config | what an image looks like inside it; none = "unbuilt" |
+| `image_prefer` | `["vsavjw", "vsavj"]` | config | substrings, in order, choosing among several images; else the first by name (the lineage took directory order) |
+| `stale_marker` | `["vsw.", "vsw.z01", "no vsw.z01 (pre-WIDE v1.1)"]` | config | `[member prefix, required member, reason]`: an image with any PREFIX member and no REQUIRED member is ROTTED |
+| `predicate` | `""` | config | a command instead of the marker: `$1` = the image, print its one-line description, exit 0 live / 1 rotted |
+| `family_regex` | `^([a-z]+)-m(\d+)$` | config | a registry set name → (family, generation) for the CURRENCY report; group 2 is an integer |
+| `no_row_note` | the lineage's | config | the currency line for an image with no registry row |
+| `rotted_advice` | the lineage's four lines | config | printed under a ROTTED verdict |
+
+The registry is `[suite].registry` and the program key is
+`[fingerprint]`'s. Currency is REPORTED, never failed; only ROTTED exits 1.
+
+## `[provenance]` — every frozen expectation file says where its numbers came from (`bbh provenance`, H5)
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `page` | `"tests/expected/PROVENANCE.md"` | config | the register: a table whose first cell is the `backticked` file name |
+| `scope` | `[["tests/expected", ""], ["tests/expect", "expect/"]]` | config | `[dir, row prefix]`: the FILES directly under each dir (never subdirectories), named `prefix + file` in the page |
+| `exclude` | `["PROVENANCE.md"]` | config | files in scope that are not expectations |
+| `evidence_classes` | the lineage's seven | config (policy) | the CLOSED vocabulary a `rests on` cell must name (as a substring) |
+| `rests_on_column` | `4` | config | which table column is `rests on` |
+
+## `[project]` keys used by `lib/sh/shadow_tools.sh` (H5)
+
+`tools_dir` and `shadow_link_dirs` reach the sh lib as `BBH_TOOLS_DIR` and
+`BBH_SHADOW_LINK_DIRS` (space-separated), exported by a runner or set by
+the gate; `REPO` or `BBH_ROOT` names the real root. `lib/sh/accounting.sh`
+has no keys: it reads the classifier's `BBH_CLASSIFY_*`.
+
+Sections `[fields]` and `[machine]` arrive with slices H6-H7 and are
+documented here as they land.
