@@ -64,3 +64,33 @@ region_default = "gfx/qsnd"
 file_pattern = "{set}.bin"                 # kind file-sha1: the image's file name
 program_command = ""                       # kind command: prints the program key ({rompath}, {set} substituted)
 wholeset_command = ""                      # kind command: prints the whole-set key
+
+[sweep]
+# the instrument-tier sweep (bbh run-sweep); every value = the lineage's (docs/config.md [sweep])
+lanes = ["prereq", "fbneo", "mame", "mister"]       # every lane, in run order
+default_lanes = ["prereq", "fbneo", "mame"]         # with no --lane
+prereq_lane = "prereq"
+release_scope = "release"
+cadences = ["romset", "bitstream"]
+freeze_cadence = "romset"
+cadence_drop_note = ["These follow the .rbf, not the romset (ruled 2026-09-03). A",
+                     "RELEASE always runs them; this run does not.",
+                     ">> IS THIS FREEZE TARGETING MiSTer? If yes, re-run with",
+                     "   --cadence all --lane mister. If no, this is correct."]
+default_timeout = 5400
+precondition = 'python3 tools/audit_roms.py "$ROMDIR" > /dev/null'
+precondition_fail_text = "ROM audit FAILED — stop (CLAUDE.md §3)"
+input_env = "ROMDIR"
+log_dir_prefix = "build/emu_sweep_"
+placeholders = { MERGED = "build/m3b_merged23", DON = "build/don_m20", HUI = "build/hui54", PYR = "build/pyron38", STOCK = "build/m5_stock15" }
+rompath_placeholder_suffix = "_RP"
+rompath_suffix = "/rompath"
+build_sets = ["vsavjw", "vsavj"]
+instruments = [["mame-wide", "MAME_WIDE_BIN", "$HOME/.cache/vampire-saved/mame/cps2"],
+               ["mame-ref", "MAME_REF_BIN", "$HOME/.cache/vampire-saved/mame-ref/cps2"],
+               ["fbneo", "", "$REPO/emu/fbneo/fbneo"]]
+env_defaults = [["MAME_BIN", "mame-wide"]]
+scratch_lanes = ["mister"]
+scratch_env = "JTSIM_SCRATCH"
+scratch_default = "vampire-saved-jtsim"
+prereq_cite = "[CPE-24]"

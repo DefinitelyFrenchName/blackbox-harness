@@ -22,6 +22,8 @@
 #   F7  the suite's dispatch: both suite runners over the lineage's real
 #       expectation trees in a shadow root with a STUB driver (no MAME),
 #       every verdict line diffed (BBH_FIDELITY_F7=all: every set).
+#   F4  the sweep runner: --list (always) and --dry-run (with ROMDIR) over
+#       the lineage's whole registry through both runners, diffed.
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.
@@ -218,6 +220,27 @@ EOF
 done
 lines7="$(printf '%s\n' "$a7" | wc -l | tr -d ' ')"
 [ "$n7" -gt 0 ] && [ "$d7" = 0 ] && ok "F7: $n7 expectation set(s) through both suite runners with the stub driver — every verdict line identical ($lines7 lines in the last, $(( $(date +%s) - t7 )) s; BBH_FIDELITY_F7=all for every set)" || fail "F7: $d7 of $n7 sets differ"
+
+echo "== F4. the sweep registry: --list and --dry-run through both runners =="
+# --list needs no input; --dry-run walks the preconditions (the ROM audit),
+# the banners (builds fingerprinted, instruments) and every lane, so it needs
+# ROMDIR. Both sides run with MAME_BIN unset so the env-default line reads
+# "(runner default)" on both; the log dir differs by argument and is
+# normalised.
+LSW="sh $V/tests/run_all_emulator.sh"; GSW="$BBH_HOME/bin/bbh-run-sweep --config $CFG"
+a4="$(set +e; cd "$V" && unset MAME_BIN && $LSW --list --scope all --lane all 2>&1; echo "exit=$?")"
+b4="$(set +e; cd "$V" && unset MAME_BIN && $GSW --list --scope all --lane all 2>&1; echo "exit=$?")"
+[ "$a4" = "$b4" ] && ok "F4 --list: identical over the whole registry ($(printf '%s\n' "$a4" | wc -l | tr -d ' ') lines, --scope all --lane all)" \
+    || { fail "F4 --list differs:"; printf '%s\n' "$a4" > "$T/a4.txt"; printf '%s\n' "$b4" > "$T/b4.txt"; diff "$T/a4.txt" "$T/b4.txt" | head -10 | sed 's/^/        /'; }
+if [ -n "${ROMDIR:-}" ] && [ -d "$ROMDIR" ]; then
+    a4d="$(set +e; cd "$V" && unset MAME_BIN && $LSW --dry-run --scope all --lane all --log "$T/sw_a" 2>&1; echo "exit=$?")"
+    b4d="$(set +e; cd "$V" && unset MAME_BIN && $GSW --dry-run --scope all --lane all --log "$T/sw_b" 2>&1; echo "exit=$?")"
+    a4d="$(printf '%s\n' "$a4d" | sed "s|$T/sw_a|LOG|g")"; b4d="$(printf '%s\n' "$b4d" | sed "s|$T/sw_b|LOG|g")"
+    [ "$a4d" = "$b4d" ] && ok "F4 --dry-run: identical — the precondition, the fingerprinted builds, the instruments, every lane's resolved command, the coverage report ($(printf '%s\n' "$a4d" | wc -l | tr -d ' ') lines)" \
+        || { fail "F4 --dry-run differs:"; printf '%s\n' "$a4d" > "$T/a4d.txt"; printf '%s\n' "$b4d" > "$T/b4d.txt"; diff "$T/a4d.txt" "$T/b4d.txt" | head -12 | sed 's/^/        /'; }
+else
+    echo "  (F4 --dry-run not run: set ROMDIR)"
+fi
 
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then

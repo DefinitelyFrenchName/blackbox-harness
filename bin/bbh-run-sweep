@@ -1,0 +1,491 @@
+#!/bin/sh
+# bbh-run-sweep — THE INSTRUMENT-TIER GATE CHAIN. One command, every gate
+# that needs an instrument (an emulator, a simulator, a driver), enumerated
+# by the sweep registry, in LANES, with the verdicts counted separately.
+#
+# Lineage: VampireSaved's tests/run_all_emulator.sh (14z-128 there). WHY IT
+# EXISTS: an index is not a runner. That project measured 164 instrument-tier
+# gates of which 32 were reachable from any runner; the other 132 could be run
+# only by typing a filename, so nothing would even ASK them at release — and
+# its release policy is "anything red, anything skipped is a hard fail". A
+# policy of "all tests" cannot operate over a set nobody enumerates.
+#
+# ORDER IS NOT DECORATION. The PREREQ lane — the instrument and verdict-logic
+# ground truths — runs FIRST, sequentially whatever --jobs says, and a red
+# there STOPS the run: an instrument that moved invalidates every measurement
+# taken after it. --keep-going overrides.
+#
+# SCOPE is the consumer's release decision, one column of the registry, and
+# `out` never means "do not run": --scope all runs everything. CADENCE is a
+# different question — what moving thing the gate FOLLOWS — and --freeze
+# selects the freeze cadence and NAMES what it dropped, so the question is
+# asked by the runner rather than remembered.
+#
+# Usage:
+#   <INPUT_ENV>=... bbh-run-sweep [--config bbh.toml]   the default lanes, the release scope
+#   ... --scope <release>|all          + the out-of-scope rows
+#   ... --lane <lane>|all              accumulates; default = [sweep].default_lanes
+#   ... --cadence <cadence>|all        default: all
+#   ... --freeze                       = --cadence <freeze_cadence> (drops the rest, named)
+#   ... --only 'glob'                  a subset (shell glob on the gate name)
+#   ... --jobs N                       N gates at once (the prereq lane stays serial)
+#   ... --timeout SECS                 per gate; a row's 7th column overrides it
+#   ... --log DIR                      default <log_dir_prefix><stamp>
+#   ... --resume                       skip gates already in the log's results.tsv
+#   ... --strict                       SKIP and UNREGISTERED are failures too
+#   ... --keep-going                   do not stop when the prereq lane fails
+#   ... --dry-run                      print the resolved command per gate
+#   ... --list                         print the registry and exit
+#
+# The registry (docs/config.md [registries].sweep): one row per gate,
+# `gate <TAB> lane <TAB> scope <TAB> cadence <TAB> args <TAB> note [<TAB> timeout]`;
+# `-` in args = the gate's own defaults; `VAR=value` tokens become the gate's
+# environment; %PLACEHOLDER% and %PLACEHOLDER<rompath_suffix-key>% expand to
+# the build set under test ([sweep.placeholders], each overridable by an
+# environment variable of the same name). EVERY PRINTED LINE IS THE LINEAGE'S
+# (fidelity F4 diffs --list and --dry-run against it); the project nouns in
+# them are config ([sweep], docs/config.md).
+set -eu
+BBH_HOME="${BBH_HOME:-$(cd "$(dirname "$0")/.." && pwd)}"; export BBH_HOME
+. "$BBH_HOME/lib/sh/config.sh"
+. "$BBH_HOME/lib/sh/classify.sh"
+
+CONFIG=""; SCOPE=""; CADENCE=all; LANES=""; LANES_SET=""; LANE_ALL=0; ONLY=""; JOBS=1; TMO=""
+LOGDIR=""; RESUME=0; STRICT=0; KEEPGOING=0; DRY=0; LIST=0; FREEZE=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --config)  shift; CONFIG="${1:?--config needs a file}" ;;
+    --scope)   shift; SCOPE="${1:?--scope needs a scope or all}" ;;
+    --cadence) shift; CADENCE="${1:?--cadence needs a cadence or all}" ;;
+    --freeze)  FREEZE=1 ;;
+    # --lane ACCUMULATES (the lineage's used to assign, and `--lane fbneo
+    # --lane mame` silently ran only the second — six gates skipped without a
+    # word, in the runner whose whole point is that nothing goes unasked).
+    --lane)    shift; case "${1:?--lane needs a lane}" in
+                      all) LANE_ALL=1 ;;
+                      *)   case " $LANES_SET " in
+                           *" $1 "*) ;;
+                           *) LANES_SET="$LANES_SET $1" ;;
+                           esac ;; esac ;;
+    --only)    shift; ONLY="${1:?--only needs a glob}" ;;
+    --jobs)    shift; JOBS="${1:?--jobs needs N}" ;;
+    --timeout) shift; TMO="${1:?--timeout needs seconds}" ;;
+    --log)     shift; LOGDIR="${1:?--log needs a dir}" ;;
+    --resume)  RESUME=1 ;;
+    --strict)  STRICT=1 ;;
+    --keep-going) KEEPGOING=1 ;;
+    --dry-run) DRY=1 ;;
+    --list)    LIST=1 ;;
+    -h|--help) sed -n '2,44p' "$0"; exit 0 ;;
+    *) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+bbh_config_init "$CONFIG"
+bbh_classify_env
+GATES_DIR="$(bbh_cfg project.gates_dir)"
+WORD="$(bbh_cfg project.instrument_word)"
+REG="$(bbh_cfg registries.sweep)"
+ALL_LANES="$(bbh_cfg sweep.lanes | tr '\n' ' ')"; ALL_LANES="${ALL_LANES% }"
+DEFAULT_LANES="$(bbh_cfg sweep.default_lanes | tr '\n' ' ')"; DEFAULT_LANES="${DEFAULT_LANES% }"
+PREREQ="$(bbh_cfg sweep.prereq_lane)"
+RELEASE="$(bbh_cfg sweep.release_scope)"
+CADENCES="$(bbh_cfg sweep.cadences | tr '\n' ' ')"; CADENCES="${CADENCES% }"
+FREEZE_CADENCE="$(bbh_cfg sweep.freeze_cadence)"
+[ -n "$TMO" ] || TMO="$(bbh_cfg sweep.default_timeout)"
+PRECOND="$(bbh_cfg sweep.precondition "")"
+PRECOND_FAIL="$(bbh_cfg sweep.precondition_fail_text)"
+INPUT_ENV="$(bbh_cfg sweep.input_env)"
+LOG_PREFIX="$(bbh_cfg sweep.log_dir_prefix)"
+RP_SUFFIX="$(bbh_cfg sweep.rompath_suffix "")"
+RP_KEY="$(bbh_cfg sweep.rompath_placeholder_suffix)"
+BUILD_SETS="$(bbh_cfg sweep.build_sets | tr '\n' ' ')"
+SCRATCH_LANES="$(bbh_cfg sweep.scratch_lanes "" | tr '\n' ' ')"; SCRATCH_LANES="${SCRATCH_LANES% }"
+SCRATCH_ENV="$(bbh_cfg sweep.scratch_env "")"
+SCRATCH_NAME="$(bbh_cfg sweep.scratch_default)"
+PREREQ_CITE="$(bbh_cfg sweep.prereq_cite "")"
+[ -n "$SCOPE" ] || SCOPE="$RELEASE"
+[ "$FREEZE" = 1 ] && CADENCE="$FREEZE_CADENCE"
+if [ "$LANE_ALL" = 1 ]; then LANES="$ALL_LANES"
+elif [ -n "$LANES_SET" ]; then LANES="${LANES_SET# }"
+else LANES="$DEFAULT_LANES"; fi
+
+# The input variable must be ABSOLUTE — at least two of the lineage's gates
+# resolve it from a different working directory than the caller's.
+eval "INPUT=\${$INPUT_ENV:-}"
+if [ -n "$INPUT" ]; then
+    INPUT="$(CDPATH= cd "$INPUT" && pwd)" || {
+        echo "$INPUT_ENV '$INPUT' does not resolve from $(pwd)" >&2; exit 2; }
+    eval "$INPUT_ENV=\"\$INPUT\""; export "$INPUT_ENV"
+fi
+cd "$BBH_ROOT"
+[ -f "$REG" ] || { echo "missing registry $REG" >&2; exit 2; }
+
+# ── THE BUILD SET UNDER TEST ────────────────────────────────────────────────
+# [sweep.placeholders]: NAME = default dir; an environment variable of the
+# same name overrides it, so one sweep can be re-run against another
+# generation without editing the registry. %NAME% expands to the dir,
+# %NAME<RP_KEY>% to the dir + rompath_suffix. The expander sorts keys
+# LONGEST FIRST so a key that is a prefix of another can never eat it.
+PH_NAMES=""; SED_SCRIPT=""
+for _kv in $(bbh_cfg sweep.placeholders "" ); do
+    _k="${_kv%%=*}"; _dflt="${_kv#*=}"
+    eval "_v=\${$_k:-}"; [ -n "$_v" ] || _v="$_dflt"
+    eval "PH_$_k=\"\$_v\""
+    PH_NAMES="$PH_NAMES $_k"
+done
+for _k in $(printf '%s\n' $PH_NAMES | awk '{print length($0) "\t" $0}' | sort -rn | cut -f2); do
+    eval "_v=\$PH_$_k"
+    SED_SCRIPT="$SED_SCRIPT -e s|%$_k$RP_KEY%|$_v$RP_SUFFIX|g -e s|%$_k%|$_v|g"
+done
+expand() {  # expand <string> — the %PLACEHOLDER% vocabulary
+    if [ -n "$SED_SCRIPT" ]; then printf '%s' "$1" | sed $SED_SCRIPT; else printf '%s' "$1"; fi
+}
+
+# ── THE REGISTRY ────────────────────────────────────────────────────────────
+rows() { sed 's/\r$//' "$REG" | awk -F'\t' 'NF>=3 && $0 !~ /^#/ && $1 != ""'; }
+
+selected() {  # rows matching --lane / --scope / --cadence / --only, in lane order
+    for _l in $LANES; do
+        rows | awk -F'\t' -v lane="$_l" -v scope="$SCOPE" -v cad="$CADENCE" -v rel="$RELEASE" '
+            $2 == lane && (scope == "all" || $3 == rel) \
+                       && (cad == "all"   || $4 == cad)'
+    done | while IFS= read -r line; do
+        _g="${line%%	*}"
+        if [ -n "$ONLY" ]; then
+            # shellcheck disable=SC2254
+            case "$_g" in $ONLY) ;; *) continue ;; esac
+        fi
+        printf '%s\n' "$line"
+    done
+}
+
+if [ "$LIST" = 1 ]; then
+    printf '%-34s %-7s %-8s %-9s %s\n' GATE LANE SCOPE CADENCE ARGS
+    selected | while IFS="$(printf '\t')" read -r g lane scope cadence args note tmo; do
+        printf '%-34s %-7s %-8s %-9s %s\n' "$g" "$lane" "$scope" "$cadence" "$(expand "${args:--}")"
+    done
+    echo
+    echo "lanes=$LANES scope=$SCOPE cadence=$CADENCE only=${ONLY:-*}  ($(selected | wc -l | tr -d ' ') gates)"
+    exit 0
+fi
+
+# ── PRECONDITIONS ───────────────────────────────────────────────────────────
+[ -n "$INPUT" ] || { echo "set $INPUT_ENV — every gate here reads the reference input" >&2; exit 2; }
+if [ -n "$PRECOND" ]; then
+    eval "$PRECOND" || { echo "$PRECOND_FAIL"; exit 1; }
+fi
+
+STAMP="$(date +%Y%m%d_%H%M%S)"
+[ -n "$LOGDIR" ] || LOGDIR="$LOG_PREFIX$STAMP"
+mkdir -p "$LOGDIR"
+RESULTS="$LOGDIR/results.tsv"
+[ -f "$RESULTS" ] || printf 'gate\tlane\tscope\tverdict\tseconds\tdetail\n' > "$RESULTS"
+
+echo "== the $WORD-tier sweep =="
+echo "  registry   $REG"
+echo "  lanes      $LANES"
+echo "  scope      $SCOPE${ONLY:+   only=$ONLY}"
+echo "  cadence    $CADENCE"
+echo "  jobs       $JOBS   timeout ${TMO}s (a row's 7th column overrides it)"
+SCRATCH_BASE=""
+if [ -n "$SCRATCH_ENV" ]; then
+    eval "SCRATCH_BASE=\${$SCRATCH_ENV:-${TMPDIR:-/tmp}/$SCRATCH_NAME}"
+    [ "$JOBS" -gt 1 ] && echo "  scratch    $SCRATCH_BASE (${SCRATCH_LANES%% *} slot 0), $SCRATCH_BASE-slotN (slots 1..$((JOBS-1)))"
+fi
+echo "  log        $LOGDIR"
+printf '  %-10s %s\n' "$INPUT_ENV" "$INPUT"
+
+# The build set, IDENTIFIED — never named. A search path is a search path,
+# and a fingerprint equal to a known reference row is a bug until proven
+# otherwise.
+echo "  builds under test:"
+for _n in $PH_NAMES; do
+    eval "_d=\$PH_$_n"
+    if [ ! -d "$_d$RP_SUFFIX" ]; then
+        printf '    %-7s %-24s ABSENT\n' "$_n" "$_d"
+        continue
+    fi
+    _set=""
+    for _s in $BUILD_SETS; do _set="$_s"; [ -f "$_d$RP_SUFFIX/$_s.zip" ] && break; done
+    _fp="$(python3 -m bbh.fingerprint "$_d$RP_SUFFIX" --set "$_set" --sha-only 2>/dev/null | cut -c1-8)"
+    printf '    %-7s %-24s %-6s %s\n' "$_n" "$_d" "$_set" "${_fp:-?}"
+done
+
+# THE CADENCE QUESTION, ASKED BY THE RUNNER RATHER THAN REMEMBERED. A ritual
+# step that lives only in prose is the step that gets skipped (the lineage
+# found three freeze tags missing for exactly that reason).
+if [ "$CADENCE" != all ]; then
+    _others=""; for _c in $CADENCES; do [ "$_c" = "$CADENCE" ] || _others="$_others $_c"; done
+    _others="${_others# }"
+    _dropped="$(rows | awk -F'\t' -v cad="$CADENCE" '$4 != cad { printf "%s ", $1 }')"
+    if [ -n "$_dropped" ]; then
+        echo
+        echo "  ── CADENCE: $_others gates DROPPED ──────────────────────────────"
+        echo "     $_dropped"
+        bbh_cfg sweep.cadence_drop_note "" | sed 's/^/     /'
+        echo "  ──────────────────────────────────────────────────────────────────"
+    fi
+fi
+
+# The instruments, identified the same way — printing them is what makes a
+# log readable six months later. [sweep].instruments rows: name, the
+# environment variable that overrides it, the default path ($HOME and $REPO
+# substituted). [sweep].env_defaults rows: a variable every gate receives
+# unless the CALLER set it, and the instrument whose path it takes — the
+# lineage's MAME_BIN, exported because an unpinned gate once ran the wrong
+# binary from PATH behind a developer shell's export.
+echo "  instruments:"
+INSTR_NAMES=""
+# rows are tab-joined by the config reader; tabs are IFS whitespace and an
+# EMPTY middle field would collapse under `read`, so split on '|' instead
+bbh_cfg sweep.instruments "" | tr '\t' '|' > "$LOGDIR/.instruments"
+while IFS='|' read -r _n _ev _dflt; do
+    [ -n "$_n" ] || continue
+    _b=""; [ -n "$_ev" ] && eval "_b=\${$_ev:-}"
+    [ -n "$_b" ] || _b="$(printf '%s' "$_dflt" | sed -e "s|\$HOME|$HOME|g" -e "s|\$REPO|$BBH_ROOT|g")"
+    eval "INSTR_$(printf '%s' "$_n" | tr -c 'A-Za-z0-9_\n' '_')=\"\$_b\""
+    if [ -x "$_b" ]; then printf '    %-10s %s\n' "$_n" "$_b"
+    else                  printf '    %-10s %s   MISSING\n' "$_n" "$_b"; fi
+done < "$LOGDIR/.instruments"
+rm -f "$LOGDIR/.instruments"
+bbh_cfg sweep.env_defaults "" | tr '\t' '|' > "$LOGDIR/.envdefaults"
+while IFS='|' read -r _var _iname; do
+    [ -n "$_var" ] || continue
+    eval "_cur=\${$_var:-}"
+    if [ -z "$_cur" ]; then
+        eval "_cur=\$INSTR_$(printf '%s' "$_iname" | tr -c 'A-Za-z0-9_\n' '_')"
+        eval "$_var=\"\$_cur\""; _from="runner default"
+    else _from="set by the caller"; fi
+    export "$_var"   # ENV-DEFAULT-EXPORT
+    printf '    %-10s %s   (%s)\n' "$_var" "$_cur" "$_from"
+done < "$LOGDIR/.envdefaults"
+rm -f "$LOGDIR/.envdefaults"
+command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1 || {
+    echo "  note: no timeout(1) — gates will run unbounded"; }
+TIMEOUT_BIN="$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null || true)"
+echo
+
+# WORKING-TREE SNAPSHOT. A sweep that rewrites tracked artifacts invalidates
+# its own evidence.
+tree_before=""
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    tree_before="$(git status --porcelain -- . 2>/dev/null | grep -v '^??' || true)"
+fi
+
+# ── THE RUN ─────────────────────────────────────────────────────────────────
+run_one() {   # run_one <gate> <lane> <scope> <args> [timeout] — writes one results row
+    _g="$1"; _lane="$2"; _scope="$3"; _args="$4"
+    _tmo="${5:-}"; case "$_tmo" in ""|-) _tmo=$TMO ;; esac
+    _log="$LOGDIR/$_g.log"
+    if [ ! -x "$GATES_DIR/$_g.sh" ]; then
+        printf '%s\t%s\t%s\tMISSING\t0\tregistered but not executable\n' \
+            "$_g" "$_lane" "$_scope" >> "$RESULTS"
+        return
+    fi
+    _env=""; _pos=""
+    for _tok in $(expand "$_args"); do
+        [ "$_tok" = "-" ] && continue
+        case "$_tok" in
+        [A-Z_][A-Z0-9_]*=*) _env="$_env $_tok" ;;
+        *)                  _pos="$_pos $_tok" ;;
+        esac
+    done
+    _t0=$(date +%s)
+    {
+        echo "### $_g  lane=$_lane scope=$_scope"
+        echo "### cmd: env$_env $GATES_DIR/$_g.sh$_pos"
+        echo "### started $(date -u +%Y-%m-%dT%H:%M:%SZ)  timeout ${_tmo}s"
+    } > "$_log"
+    # </dev/null: a gate that reads stdin otherwise swallows the rest of the queue.
+    if [ -n "$TIMEOUT_BIN" ]; then
+        # shellcheck disable=SC2086
+        env $_env "$TIMEOUT_BIN" -k 30 "$_tmo" "$GATES_DIR/$_g.sh" $_pos </dev/null >> "$_log" 2>&1 && _st=0 || _st=$?
+    else
+        # shellcheck disable=SC2086
+        env $_env "$GATES_DIR/$_g.sh" $_pos </dev/null >> "$_log" 2>&1 && _st=0 || _st=$?
+    fi
+    _t1=$(date +%s); _dur=$((_t1 - _t0))
+    bbh_classify "$_st" "$_log" 90
+    _v="$BBH_VERDICT"; _d="$BBH_DETAIL"
+    [ "$_v" = TIMEOUT ] && _d="killed after ${_tmo}s"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$_g" "$_lane" "$_scope" "$_v" "$_dur" "$_d" >> "$RESULTS"
+    printf '  %-34s %-7s %4ss  %s\n' "$_g" "$_v" "$_dur" "$_d"
+}
+
+already_done() {  # already_done <gate>
+    [ "$RESUME" = 1 ] || return 1
+    awk -F'\t' -v g="$1" 'NR>1 && $1==g {found=1} END{exit !found}' "$RESULTS"
+}
+
+is_scratch_lane() { case " $SCRATCH_LANES " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+n_total=0
+for _l in $LANES; do
+    _rows="$(selected | awk -F'\t' -v lane="$_l" '$2 == lane')"
+    [ -n "$_rows" ] || continue
+    _n=$(printf '%s\n' "$_rows" | wc -l | tr -d ' ')
+    echo "== $_l lane ($_n gates) =="
+    n_total=$((n_total + _n))
+    # The prereq lane runs SEQUENTIALLY whatever --jobs says: these gates
+    # measure the instruments, and an instrument measured under contention is
+    # a different instrument.
+    _jobs=$JOBS; [ "$_l" = "$PREREQ" ] && _jobs=1
+    _running=0
+    # THE LANE'S ROWS GO THROUGH A FILE, NOT A PIPE: a `| while read` loop is a
+    # subshell, its background gates are the subshell's, and the main shell's
+    # `wait` would have nothing to wait for — the lineage saw a gate orphaned
+    # across a lane boundary and filed under the wrong heading.
+    printf '%s\n' "$_rows" > "$LOGDIR/.lane_$_l"
+    while IFS="$(printf '\t')" read -r g lane scope cadence args note tmo; do
+        [ -n "$g" ] || continue
+        if already_done "$g"; then
+            printf '  %-34s %-7s        (resumed: already in results.tsv)\n' "$g" "-"
+            continue
+        fi
+        if [ "$DRY" = 1 ]; then
+            _shown="$(expand "${args:--}")"; [ "$_shown" = "-" ] && _shown=""
+            printf '  %-34s %-7s %s\n' "$g" "$lane" "$GATES_DIR/$g.sh $_shown"
+            continue
+        fi
+        if [ "$_jobs" -le 1 ]; then
+            run_one "$g" "$lane" "$scope" "${args:--}" "${tmo:-}"
+        else
+            # A SCRATCH LANE IS PARALLEL BY SCRATCH CLONE: job slot 0 keeps the
+            # base scratch (its compiled model is warm), slot N gets
+            # `<base>-slotN`, handed to the gate through [sweep].scratch_env.
+            _slot_env=""
+            if [ -n "$SCRATCH_ENV" ] && is_scratch_lane "$_l"; then
+                _scr="$SCRATCH_BASE"; [ "$_running" -gt 0 ] && _scr="$SCRATCH_BASE-slot$_running"
+                _slot_env="$SCRATCH_ENV=$_scr "
+            fi
+            run_one "$g" "$lane" "$scope" "$_slot_env${args:--}" "${tmo:-}" &
+            _running=$((_running + 1))
+            if [ "$_running" -ge "$_jobs" ]; then wait; _running=0; fi
+        fi
+    done < "$LOGDIR/.lane_$_l"
+    wait                       # the lane is not finished until its gates are
+    rm -f "$LOGDIR/.lane_$_l"
+    # THE INSTRUMENT GATE. A red prereq means every later measurement is
+    # measured with a moved instrument, so the run stops by default.
+    if [ "$_l" = "$PREREQ" ] && [ "$DRY" = 0 ] && [ "$KEEPGOING" = 0 ]; then
+        _bad="$(awk -F'\t' -v p="$PREREQ" 'NR>1 && $2==p && ($4=="FAIL"||$4=="TIMEOUT"||$4=="MISSING") {print $1}' "$RESULTS")"
+        if [ -n "$_bad" ]; then
+            echo
+            echo "STOP: the $PREREQ lane is not green:"
+            printf '%s\n' "$_bad" | sed 's/^/      /'
+            echo "      These gates measure the INSTRUMENTS. A measurement taken after a"
+            echo "      moved instrument is not evidence${PREREQ_CITE:+ ($PREREQ_CITE)}. Fix them, or re-run"
+            echo "      with --keep-going if you have a reason to accept the risk."
+            exit 1
+        fi
+    fi
+done
+
+# ── REGISTRY COVERAGE (the anti-orphan check, re-derived here every run) ────
+echo
+echo "== registry coverage (the anti-orphan check) =="
+python3 -m bbh.tier "$BBH_CONFIG" --list > "$LOGDIR/.tier"
+python3 - "$BBH_CONFIG" "$REG" "$LOGDIR" "$WORD" "$RELEASE" <<'PY'
+import os, sys
+sys.path.insert(0, os.path.join(os.environ["BBH_HOME"], "lib", "py"))
+from bbh import config as C
+cfg_path, reg_path, logdir, word, release = sys.argv[1:6]
+cfg = C.load(cfg_path)
+def reg(p):
+    if not os.path.exists(p): return set()
+    return {l.split('#')[0].strip() for l in open(p)} - {''}
+known_plain = reg(C.get(cfg, "registries.portable")) | reg(C.get(cfg, "registries.static"))
+prefixes = tuple(C.get(cfg, "project.runner_prefixes"))
+rows = {}
+for line in open(reg_path):
+    if line.startswith("#") or not line.strip():
+        continue
+    c = line.rstrip("\n").split("\t")
+    if len(c) >= 3 and c[0]:
+        rows[c[0]] = c
+# THE TIER CLASSIFIER IS THE ONE COPY (lib/py/bbh/tier.py) the static runner
+# uses too: a gate is instrument-tier when it reaches an instrument,
+# transitively through sourced libs. The two runners cannot disagree.
+tier = set()
+for line in open(os.path.join(logdir, ".tier")):
+    parts = line.rstrip("\n").split("\t")
+    if len(parts) >= 2 and parts[1] == "INSTRUMENT":
+        n = parts[0]
+        if n in known_plain or n.startswith(prefixes):
+            continue
+        tier.add(n)
+unreg = sorted(tier - set(rows))
+dead = sorted(set(rows) - tier)
+rel = sum(1 for c in rows.values() if c[2] == release)
+print(f"  {len(tier)} {word}-tier gates; {len(rows)} registered "
+      f"({rel} {release} scope, {len(rows)-rel} out of {release} scope)")
+if unreg:
+    print(f"  {len(unreg)} UNREGISTERED (in no runner — a release would not even ask them):")
+    for n in unreg:
+        print("      " + n)
+if dead:
+    print(f"  {len(dead)} DEAD ROW(S) (registered, script gone):")
+    for n in dead:
+        print("      " + n)
+if not unreg and not dead:
+    print(f"  ok: every {word}-tier gate has exactly one registry row")
+open(os.path.join(logdir, "coverage"), "w").write(
+    f"{len(unreg)} {len(dead)}\n" + "\n".join(unreg + dead))
+PY
+rm -f "$LOGDIR/.tier"
+COV="$(head -1 "$LOGDIR/coverage" 2>/dev/null || echo '0 0')"
+n_unreg="${COV%% *}"; n_dead="${COV##* }"
+
+# ── WORKING TREE ────────────────────────────────────────────────────────────
+echo
+echo "== working tree =="
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "  note: not a git checkout — not checked"
+else
+    tree_after="$(git status --porcelain -- . 2>/dev/null | grep -v '^??' || true)"
+    if [ "$tree_before" = "$tree_after" ]; then
+        echo "  ok: no tracked file changed during the run"
+    else
+        printf '%s\n' "$tree_before" | awk 'NF' > "$LOGDIR/tree_before.txt"
+        printf '%s\n' "$tree_after"  | awk 'NF' > "$LOGDIR/tree_after.txt"
+        echo "  DIRTIED by the run — a sweep that rewrites tracked artifacts"
+        echo "  invalidates its own evidence:"
+        diff "$LOGDIR/tree_before.txt" "$LOGDIR/tree_after.txt" \
+            | grep '^[<>]' | sed 's/^/      /' | head -12
+    fi
+fi
+
+# ── VERDICT ─────────────────────────────────────────────────────────────────
+if [ "$DRY" = 1 ]; then echo; echo "--dry-run: nothing was executed."; exit 0; fi
+n_pass=$(awk -F'\t' 'NR>1 && $4=="PASS"'    "$RESULTS" | wc -l | tr -d ' ')
+n_skip=$(awk -F'\t' 'NR>1 && $4=="SKIP"'    "$RESULTS" | wc -l | tr -d ' ')
+n_fail=$(awk -F'\t' 'NR>1 && $4=="FAIL"'    "$RESULTS" | wc -l | tr -d ' ')
+n_tmo=$(awk  -F'\t' 'NR>1 && $4=="TIMEOUT"' "$RESULTS" | wc -l | tr -d ' ')
+n_miss=$(awk -F'\t' 'NR>1 && $4=="MISSING"' "$RESULTS" | wc -l | tr -d ' ')
+echo
+echo "======================================================================"
+printf 'PASS %-4s  SKIP %-4s  FAIL %-4s  TIMEOUT %-4s  MISSING %s\n' \
+    "$n_pass" "$n_skip" "$n_fail" "$n_tmo" "$n_miss"
+for kind in SKIP FAIL TIMEOUT MISSING; do
+    _l="$(awk -F'\t' -v k="$kind" 'NR>1 && $4==k {printf " %s", $1}' "$RESULTS")"
+    [ -n "$_l" ] && echo "$(printf '%-8s' "$kind"):$_l"
+done
+echo "results   $RESULTS"
+rc=0
+[ "$n_fail" = 0 ] && [ "$n_tmo" = 0 ] && [ "$n_miss" = 0 ] || rc=1
+if [ "$STRICT" = 1 ]; then
+    if [ "$n_skip" != 0 ]; then
+        echo "--strict: SKIP counts as failure (a skipped gate asserts NOTHING,"
+        echo "          and at release the maintainer's ruling makes it a hard fail)"
+        rc=1
+    fi
+    if [ "$n_unreg" != 0 ] || [ "$n_dead" != 0 ]; then
+        echo "--strict: an unregistered or dead registry row is a failure"
+        rc=1
+    fi
+fi
+[ "$rc" = 0 ] && echo "GREEN — every selected $WORD-tier gate passed." \
+              || echo "NOT GREEN — see above. Rule 6: fixing this is the only task."
+exit $rc

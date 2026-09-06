@@ -109,6 +109,36 @@ Read by `lib/py/bbh/fingerprint.py` through `--config` or `BBH_CONFIG`.
 | `file_pattern` | `"{set}.bin"` | config | kind `file-sha1`: the image's file name |
 | `program_command`, `wholeset_command` | `""` | config | kind `command`: shell commands printing the keys, `{rompath}` and `{set}` substituted |
 
-Sections `[sweep]`, `[fields]`, `[gate_header]`, `[ref_rot]`,
-`[provenance]`, `[machine]` arrive with slices H4-H7 and are documented
-here as they land.
+## `[sweep]` — the instrument-tier sweep (`bbh run-sweep`, H4)
+
+The registry is `[registries].sweep`: `gate <TAB> lane <TAB> scope <TAB>
+cadence <TAB> args <TAB> note [<TAB> timeout]`. The vocabularies of the
+lane, scope and cadence columns are these keys.
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `lanes` | `["prereq","fbneo","mame","mister"]` | config | every lane, in RUN ORDER; `--lane all` |
+| `default_lanes` | `["prereq","fbneo","mame"]` | config | what runs with no `--lane` (the lineage's Verilator lane is opt-in) |
+| `prereq_lane` | `"prereq"` | config | runs FIRST and serially; a red there STOPS the run (`--keep-going` overrides) |
+| `release_scope` | `"release"` | config | the scope value that gates a release; any other value is `out` (never "do not run": `--scope all`) |
+| `cadences` | `["romset","bitstream"]` | config | the cadence column's vocabulary |
+| `freeze_cadence` | `"romset"` | config | what `--freeze` selects; the other cadences are DROPPED and NAMED |
+| `cadence_drop_note` | the lineage's four lines | config | printed under the dropped list (an array of lines; `[]` = nothing) |
+| `default_timeout` | `5400` | config | seconds per gate; a row's 7th column overrides it |
+| `precondition` | `python3 tools/audit_roms.py "$ROMDIR" > /dev/null` | config | a command run before anything (`eval`); `""` = none |
+| `precondition_fail_text` | `ROM audit FAILED — stop (CLAUDE.md §3)` | config | printed when it fails (exit 1) |
+| `input_env` | `"ROMDIR"` | config | the reference-input variable; demanded (after `--list`), made absolute |
+| `log_dir_prefix` | `"build/emu_sweep_"` | config | + a timestamp when `--log` is not given |
+| `placeholders` | the lineage's five build dirs | config | `NAME = "dir"`: `%NAME%` in args; an environment variable `NAME` overrides the default |
+| `rompath_placeholder_suffix` | `"_RP"` | code | `%NAME_RP%` = `%NAME%` + `rompath_suffix` |
+| `rompath_suffix` | `"/rompath"` | config | the build dir's search-path subdirectory (`""` when the dir IS the search path) |
+| `build_sets` | `["vsavjw","vsavj"]` | config | for the banner's fingerprint: the first set whose zip exists under the build's search path |
+| `instruments` | the lineage's three | config | `[name, override variable, default path]` rows; `$HOME` and `$REPO` substituted; each printed with MISSING when not executable |
+| `env_defaults` | `[["MAME_BIN","mame-wide"]]` | config | `[variable, instrument name]`: every gate receives the instrument's path unless the CALLER set the variable; the banner says which |
+| `scratch_lanes` | `["mister"]` | config | lanes whose `--jobs` slots each get their own scratch: slot 0 the base, slot N `<base>-slotN` |
+| `scratch_env` | `"JTSIM_SCRATCH"` | config | the variable carrying it; `""` disables |
+| `scratch_default` | `"vampire-saved-jtsim"` | config | under `${TMPDIR:-/tmp}` when the variable is unset |
+| `prereq_cite` | `"[CPE-24]"` | config | the citation in the prereq STOP text; `""` = none |
+
+Sections `[fields]`, `[gate_header]`, `[ref_rot]`, `[provenance]`,
+`[machine]` arrive with slices H5-H7 and are documented here as they land.

@@ -66,3 +66,6 @@ parent_sets = ["vsav"]
 region_rules = [['\.key$', 'key'], ['\.0[12]$', 'z80'], ['^vsw\..*m$', 'gfx/qsnd'],
                 ['^vsw\.', 'prg'], ['@program', 'prg']]
 region_default = "gfx/qsnd"
+
+# [sweep] — the sweep runner's section takes the DEFAULTS, which are this
+# project's literals (bbh.toml.example lists them; docs/config.md [sweep]).

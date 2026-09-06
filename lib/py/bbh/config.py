@@ -63,6 +63,37 @@ DEFAULTS = {
                            "INPUT_OUT", "INPUT_INJECT_TEST", "NO_INPUT_CHECK"],
         "hash_cmd": "shasum",                        # prints "<hex> <file>"; sha1sum on Linux
     },
+    "sweep": {
+        # H4 — the instrument-tier sweep (bin/bbh-run-sweep); the lineage's literals
+        "lanes": ["prereq", "fbneo", "mame", "mister"],   # every lane, in RUN ORDER
+        "default_lanes": ["prereq", "fbneo", "mame"],     # what runs when no --lane is given
+        "prereq_lane": "prereq",                          # runs first, serial; a red there stops the run
+        "release_scope": "release",                       # the scope column's value that gates a release
+        "cadences": ["romset", "bitstream"],              # the cadence column's vocabulary
+        "freeze_cadence": "romset",                       # what --freeze selects (the rest are dropped, named)
+        "cadence_drop_note": ["These follow the .rbf, not the romset (ruled 2026-09-03). A",
+                              "RELEASE always runs them; this run does not.",
+                              ">> IS THIS FREEZE TARGETING MiSTer? If yes, re-run with",
+                              "   --cadence all --lane mister. If no, this is correct."],
+        "default_timeout": 5400,                          # seconds per gate; a row's 7th column overrides
+        "precondition": 'python3 tools/audit_roms.py "$ROMDIR" > /dev/null',   # a command; "" = none
+        "precondition_fail_text": "ROM audit FAILED — stop (CLAUDE.md §3)",
+        "input_env": "ROMDIR",                            # demanded, made absolute
+        "log_dir_prefix": "build/emu_sweep_",             # + a timestamp
+        "placeholders": {"MERGED": "build/m3b_merged23", "DON": "build/don_m20", "HUI": "build/hui54",
+                         "PYR": "build/pyron38", "STOCK": "build/m5_stock15"},   # %NAME%; env NAME= overrides
+        "rompath_placeholder_suffix": "_RP",              # %NAME_RP% = %NAME% + rompath_suffix
+        "rompath_suffix": "/rompath",
+        "build_sets": ["vsavjw", "vsavj"],                # the set fingerprinted: the first whose zip exists
+        "instruments": [["mame-wide", "MAME_WIDE_BIN", "$HOME/.cache/vampire-saved/mame/cps2"],
+                        ["mame-ref", "MAME_REF_BIN", "$HOME/.cache/vampire-saved/mame-ref/cps2"],
+                        ["fbneo", "", "$REPO/emu/fbneo/fbneo"]],   # name, override variable, default path
+        "env_defaults": [["MAME_BIN", "mame-wide"]],      # variable every gate receives unless the caller set it
+        "scratch_lanes": ["mister"],                      # lanes whose --jobs slots get their own scratch
+        "scratch_env": "JTSIM_SCRATCH",                   # the variable carrying it; "" = no scratch handling
+        "scratch_default": "vampire-saved-jtsim",         # under ${TMPDIR:-/tmp} when the variable is unset
+        "prereq_cite": "[CPE-24]",                        # the citation in the prereq STOP text; "" = none
+    },
     "fingerprint": {
         "kind": "zip-members",                       # zip-members | file-sha1 | command
         "program_member_regex": r"\.(0[3-9]|10|4[1-4])[a-ln-z]?$",   # group 1 = the member's order

@@ -1,0 +1,12 @@
+# ci_sweep.tsv — THE INSTRUMENT-TIER REGISTRY of the example consumer: one row per
+# gate that reaches the fake driver. Input to `bbh run-sweep`, and the only place
+# a release's instrument scope is declared.
+# COLUMNS  gate <TAB> lane <TAB> scope <TAB> cadence <TAB> args <TAB> note [<TAB> timeout]
+#   lane     prereq | fake — prereq = the instrument ground truths, run first, serial
+#   scope    release | out — out never means "do not run" (--scope all)
+#   cadence  romset — the example has one moving thing
+#   args     `-` = the gate's own defaults; %BUILD_A% / %BASE% / %HOOK% = [sweep.placeholders]
+g_driver_ok	prereq	release	romset	-	the fake driver runs one replay to END: the instrument is sound
+g_suite	fake	release	romset	%BUILD_A%	the suite on the hooked build is GREEN
+g_suite_refuses	fake	release	romset	%HOOK%	an unregistered image is refused loudly (the must-fire of dispatch)
+g_needs_fake	fake	out	romset	-	momentary: a tier-classifier fixture (reaches the driver through a sourced lib)

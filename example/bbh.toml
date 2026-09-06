@@ -16,6 +16,7 @@ instrument_word = "driver"
 [registries]
 portable = "tests/ci_portable.txt"
 static = "tests/ci_static.txt"
+sweep = "tests/ci_sweep.tsv"
 # the static tier runs only when this variable is set (the reference
 # inputs it names must be present); empty = the static tier always runs
 static_needs_env = "FAKE_ROOT"
@@ -23,7 +24,7 @@ static_needs_env = "FAKE_ROOT"
 [tier]
 # a gate matching any of these (comments stripped), or sourcing a lib that
 # does, NEEDS THE DRIVER and belongs to neither plain registry
-patterns = ['fakesys\.py', 'drivers/fake\.sh', 'FAKE_BIN']
+patterns = ['fakesys\.py', 'drivers/fake\.sh', 'FAKE_BIN', 'run-suite']   # run-suite: a gate that runs the suite reaches the driver
 source_regex = '^\s*\.\s+"?\$(?:REPO|\{REPO\})"?/(tests/lib/[a-z0-9_]+\.sh)'
 source_depth = 2
 
@@ -61,3 +62,27 @@ program_member_regex = '\.(0[1-9])$'      # fake.01, fake.02 are the program; fa
 parent_sets = []
 region_rules = [['\.key$', 'key'], ['\.gfx$', 'gfx'], ['@program', 'prg']]
 region_default = "other"
+
+[sweep]
+lanes = ["prereq", "fake"]
+default_lanes = ["prereq", "fake"]
+prereq_lane = "prereq"
+release_scope = "release"
+cadences = ["romset"]
+freeze_cadence = "romset"
+cadence_drop_note = []
+default_timeout = 600
+precondition = "python3 fakesys/make_roms.py --check > /dev/null"    # the images must be their generator's
+precondition_fail_text = "the fake images differ from their generator — stop"
+input_env = "FAKE_ROOT"
+log_dir_prefix = "build/sweep_"
+placeholders = { BUILD_A = "roms/build-a", BASE = "roms/base", HOOK = "roms/hook" }
+rompath_placeholder_suffix = "_RP"
+rompath_suffix = ""                 # the example's build dirs ARE the search paths
+build_sets = ["fake"]
+instruments = [["fake-driver", "", "$REPO/../drivers/fake.sh"]]
+env_defaults = []
+scratch_lanes = []
+scratch_env = ""
+scratch_default = ""
+prereq_cite = ""

@@ -9,6 +9,8 @@
 #   bbh demand-after-trap <gates-dir> [--lib d] [--skip name]    (lib/py/bbh/demand_after_trap.py)
 #   bbh compare-flicker | compare-window | compare-composite | check-diverge | describe-shape …
 #                                 the comparison classes (lib/py/bbh/compare_*.py; H2)
+#   bbh run-sweep [--config bbh.toml] [--scope|--lane|--cadence|--freeze|--only|--jobs|--timeout|--log|--resume|--strict|--keep-going|--dry-run|--list]
+#                                 the instrument-tier sweep (bin/bbh-run-sweep; H4)
 #   bbh run-suite [--config bbh.toml] [--driver d] [--freeze] [set]
 #                                 the oracle replay suite (bin/bbh-run-suite; H3)
 #   bbh fingerprint <rompath> [--set S] [--sha-only|--set-key|--full]   (lib/py/bbh/fingerprint.py; H3)
@@ -18,10 +20,10 @@
 #
 # Every subcommand finds the harness from THIS file's location, so the
 # harness can live anywhere; the consumer is found from --config / $BBH_CONFIG
-# / ./bbh.toml. Slice H4 adds run-sweep; H6 the MAME drivers.
+# / ./bbh.toml. Slice H6 adds the MAME drivers.
 set -eu
 BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
-[ $# -ge 1 ] || { sed -n '2,18p' "$0"; exit 2; }
+[ $# -ge 1 ] || { sed -n '2,20p' "$0"; exit 2; }
 cmd="$1"; shift
 PYTHONPATH="$BBH_HOME/lib/py${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH
 case "$cmd" in
@@ -35,11 +37,12 @@ compare-window)    exec python3 -m bbh.compare_window "$@" ;;
 compare-composite) exec python3 -m bbh.compare_composite "$@" ;;
 check-diverge)     exec python3 -m bbh.check_diverge "$@" ;;
 describe-shape)    exec python3 -m bbh.describe_masked_shape "$@" ;;
+run-sweep)         exec "$BBH_HOME/bin/bbh-run-sweep" "$@" ;;
 run-suite)         exec "$BBH_HOME/bin/bbh-run-suite" "$@" ;;
 fingerprint)       exec python3 -m bbh.fingerprint "$@" ;;
 rpl)               exec python3 -m bbh.rpl "$@" ;;
 doctor)            exec "$BBH_HOME/bin/bbh-doctor" "$@" ;;
 selftest)          exec "$BBH_HOME/selftest/run.sh" "$@" ;;
--h|--help|help)    sed -n '2,18p' "$0"; exit 0 ;;
+-h|--help|help)    sed -n '2,20p' "$0"; exit 0 ;;
 *) echo "bbh: unknown command '$cmd' (try bbh help)" >&2; exit 2 ;;
 esac
