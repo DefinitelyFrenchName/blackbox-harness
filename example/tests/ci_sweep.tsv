@@ -9,4 +9,5 @@
 g_driver_ok	prereq	release	romset	-	the fake driver runs one replay to END: the instrument is sound
 g_suite	fake	release	romset	%BUILD_A%	the suite on the hooked build is GREEN
 g_suite_refuses	fake	release	romset	%HOOK%	an unregistered image is refused loudly (the must-fire of dispatch)
+g_fields	fake	release	romset	%BUILD_A%	the dual-implementation protocol: base and the hooked build agree at the anchor, differ frame-exact
 g_needs_fake	fake	out	romset	-	momentary: a tier-classifier fixture (reaches the driver through a sourced lib)

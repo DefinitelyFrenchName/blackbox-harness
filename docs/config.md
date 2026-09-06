@@ -213,5 +213,24 @@ The registry is `[suite].registry` and the program key is
 the gate; `REPO` or `BBH_ROOT` names the real root. `lib/sh/accounting.sh`
 has no keys: it reads the classifier's `BBH_CLASSIFY_*`.
 
-Sections `[fields]` and `[machine]` arrive with slices H6-H7 and are
-documented here as they land.
+## `[fields]` — mapped fields at sync anchors, and dump completeness (`bbh compare-fields`, `bbh check-dumps`, H7)
+
+The dual-implementation protocol: two implementations of one machine
+traverse identical states on different frame indices, so the comparable
+thing is the MAPPED state at anchors each side finds on its own. The
+predicate and the bases were the one comparator's game facts in SOURCE in
+the lineage; here they are the consumer's.
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `table` | `"tests/fields_m2a.tsv"` | config | `name <TAB> base <TAB> addr <TAB> width [<TAB> phase [<TAB> note]]`; `--fields` overrides; the TSV may carry `# base <name>=<addr>` header lines that override `bases` |
+| `dump_regex` | `(?:^\|\.)dump_(\d+)_([0-9a-fA-F]{6})\.bin$` | code | a dump file's name: group 1 the frame, group 2 the hex address (the driver contract's `dump_<frame>_<lo>.bin`; a driver-prefixed `<out>.dump_…` matches too) |
+| `bases` | `{ p1 = 0xFF8400, p2 = 0xFF8800 }` | config | a field's `base` column names one of these; its address is added to `addr`; `abs` is always accepted |
+| `anchor` | the lineage's four clauses | config (a game fact) | `[[address, width, value], …]`, all true = the anchor predicate; its debounced RISING EDGE is an anchor |
+| `anchor_hint` | `dump $FF8000-$FF8300 and $FF8400-$FF8C00 windows` | config | printed when a predicate field is not covered by the dumps |
+| `stable` | `30` | config (policy) | an edge counts only if the predicate holds this many frames (the lineage measured a transient true during round intros) |
+| `settle` | `120` | config (policy) | `settled` fields are compared at offsets ≥ this (`--settle` overrides) |
+| `integrity_hint` | the lineage's two lines | config | printed under `DUMP INTEGRITY FAILED` |
+
+Section `[machine]` arrives with slice H6 and is documented here when it
+lands.

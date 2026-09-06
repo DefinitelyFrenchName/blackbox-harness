@@ -49,6 +49,20 @@ FAKE_ROOT=. FAKE_ROMPATH=roms/base ../bin/bbh run-suite --freeze    # rewrites b
 ./make_expected.sh                                                   # the whole tree, from scratch, with its provenance
 ```
 
+## The dual-implementation protocol, on one machine
+
+```sh
+FAKE_ROOT=. tests/g_fields.sh            # base vs build-a: agree at the match-start anchor and +30/+60; --exact differs on the hook's late byte
+```
+
+Two implementations of one machine reach the same states on different
+frame indices, so `bbh compare-fields` compares MAPPED fields
+(`tests/fields.tsv`) at the debounced rising edge of the anchor predicate
+(`[fields].anchor`: mode == match, both HPs at 100) rather than at fixed
+frames; the fake's hooked build plays the second implementation. `bbh
+check-dumps` asserts the dump set is complete first — the comparator globs,
+and a missing dump would silently move an anchor.
+
 ## The hygiene checks, as a consumer runs them
 
 ```sh

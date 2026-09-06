@@ -177,6 +177,19 @@ DEFAULTS = {
                              "derived", "static", "hash-lock", "registry"],   # the CLOSED vocabulary the `rests on` cell must name
         "rests_on_column": 4,                                # which table column carries the evidence class
     },
+    "fields": {
+        # H7 — mapped-field comparison at anchors (bbh compare-fields) and dump completeness (bbh check-dumps)
+        "table": "tests/fields_m2a.tsv",              # name/base/addr/width[/phase[/note]] TSV; `# base p1=0x…` headers override `bases`
+        "dump_regex": r"(?:^|\.)dump_(\d+)_([0-9a-fA-F]{6})\.bin$",   # group 1 the frame, group 2 the hex address
+        "bases": {"p1": 0xFF8400, "p2": 0xFF8800},    # base name -> address added to a field's addr (the lineage's player blocks)
+        "anchor": [[0xFF8004, 4, 0x40000], [0xFF8008, 4, 0x40000],
+                   [0xFF8450, 2, 0x120], [0xFF8850, 2, 0x120]],   # [address, width, value] clauses, all true = the anchor predicate (match start)
+        "anchor_hint": "dump $FF8000-$FF8300 and $FF8400-$FF8C00 windows",   # what to dump when a predicate field is not covered
+        "stable": 30,                                 # debounce: an edge counts only if the predicate holds this many frames
+        "settle": 120,                                # the offset at/after which `settled` fields are compared
+        "integrity_hint": ["A glob-based comparison would have silently used a DIFFERENT",
+                           "frame set. Do not compare this run — see docs/platform/gotchas.md."],   # under a DUMP INTEGRITY FAILED
+    },
     "classify": {
         "skip_regex": r"^ *SKIP",
         "shell_error_regex": r"\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: ",

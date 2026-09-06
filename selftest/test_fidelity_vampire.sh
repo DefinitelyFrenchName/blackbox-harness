@@ -29,6 +29,10 @@
 #       lineage gate's first two sections), ref-rot (the lineage gate's
 #       report) and demand-after-trap — the generic tool with the consumer
 #       config against the lineage's, full stdout + exit status diffed.
+#   F10 the field comparator and the dump checker over SYNTHETIC dump
+#       directories shaped like the lineage's (its addresses, its fields
+#       table, a driver-prefixed copy): every mode and every failure, stdout
+#       + stderr + exit diffed.
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.
@@ -266,6 +270,77 @@ cmp -s "$T/gi9.md" "$V/docs/project/gate_index.md" && ok "F9 gate-index render: 
 f9_pair provenance "sh tests/test_expectation_provenance.sh | sed -n '/^== 1\./,/^== 3\./p' | sed '\$d'" "$BBH_HOME/bin/bbh provenance --config $CFG"
 f9_pair ref-rot "sh tests/test_build_ref_rot.sh | sed '\$d' | sed '\$d'; exit 0" "$BBH_HOME/bin/bbh ref-rot --config $CFG; exit 0"
 f9_pair demand-after-trap "sh tests/test_demand_after_trap.sh >/dev/null; echo checked" "$BBH_HOME/bin/bbh demand-after-trap tests --lib lib --skip test_demand_after_trap.sh; echo checked"
+
+echo "== F10. the field comparator and the dump checker over synthetic lineage-shaped dumps =="
+# Fabricated: two sides whose match-start predicate ($FF8004/$FF8008 .l ==
+# 0x40000, both HPs 0x120) rises on DIFFERENT frames (2340 vs 2343), every
+# field of tests/fields_m2a.tsv filled deterministically, one settled field
+# differing after the anchor, a driver-prefixed copy, a side with a hole,
+# a side whose window starts true. Both tools over every mode; the dump
+# checker over every verdict. ROM-free.
+python3 - "$T" <<'EOF'
+import os, sys, shutil
+T = sys.argv[1]
+def side(name, edge, tweak=None, prefix="", frames=range(2300, 2420), hole=None, startstrue=False):
+    d = f"{T}/f10_{name}"; os.makedirs(d, exist_ok=True)
+    for f in frames:
+        if f == hole: continue
+        on = startstrue or f >= edge
+        g = bytearray(0x300); p = bytearray(0x800)
+        if on:
+            g[4:8] = (0x40000).to_bytes(4, "big"); g[8:12] = (0x40000).to_bytes(4, "big")
+        g[0x109] = (99 - (f - edge) // 60) & 0xFF if on else 0
+        for base in (0, 0x400):
+            p[base + 0x50:base + 0x52] = (0x120 if on else 0).to_bytes(2, "big"); p[base + 0x52:base + 0x54] = (0x120).to_bytes(2, "big")
+            p[base + 0x60:base + 0x64] = (0xB0D2E + base).to_bytes(4, "big"); p[base + 0x64:base + 0x68] = (0x123456).to_bytes(4, "big")
+            p[base + 0x132:base + 0x134] = (0x77).to_bytes(2, "big"); p[base + 0x109] = 3; p[base + 0x10A:base + 0x10C] = (0x40).to_bytes(2, "big")
+            p[base + 0x10:base + 0x12] = (300 + base // 0x400 * 200).to_bytes(2, "big"); p[base + 0x14:base + 0x16] = (0).to_bytes(2, "big")
+            p[base + 0x0A] = 0; p[base + 0x0B] = base // 0x400; p[base + 0x1C:base + 0x20] = (0x50000 + f).to_bytes(4, "big")
+            p[base + 0x94:base + 0x98] = (f & 0xFF).to_bytes(4, "big"); p[base + 0x98] = 1
+        if tweak: tweak(f, edge, g, p)
+        open(f"{d}/{prefix}dump_{f}_ff8000.bin", "wb").write(g); open(f"{d}/{prefix}dump_{f}_ff8400.bin", "wb").write(p)
+def tw(f, edge, g, p):
+    if f >= edge + 120: p[0x10:0x12] = (301).to_bytes(2, "big")     # p1_x differs once settled
+side("a", 2340); side("b", 2343, tw); side("c", 2343, tw, prefix="out.")
+side("h", 2340, hole=2400); side("s", 2340, startstrue=True); side("t", 2340, frames=range(2300, 2352))
+EOF
+FT="$V/tests/fields_m2a.tsv"; n10=0; d10=0
+f10_pair() {  # f10_pair <label> <lineage args…> -- <harness args…>  (same args both sides)
+    lbl="$1"; shift
+    a10="$( (set +e; cd "$V" && python3 tools/compare_fields.py "$@" 2>&1; echo "rc=$?") )"
+    b10="$( (set +e; cd "$V" && python3 -m bbh.compare_fields --config "$CFG" "$@" 2>&1; echo "rc=$?") )"
+    n10=$((n10 + 1)); [ "$a10" = "$b10" ] || { d10=$((d10 + 1)); [ $d10 -le 3 ] && { echo "  DIFF compare-fields $lbl"; printf '%s\n' "$a10" | sed 's/^/        lineage| /' | head -6; printf '%s\n' "$b10" | sed 's/^/        bbh    | /' | head -6; }; }
+}
+f10_pair anchors-a "$T/f10_a" --list-anchors
+f10_pair anchors-starts-true "$T/f10_s" --list-anchors
+f10_pair anchors-transient "$T/f10_t" --list-anchors
+f10_pair anchor-mode "$T/f10_a" "$T/f10_b" --fields "$FT" --follow 0,30,60 --label-a mame --label-b fbneo
+f10_pair anchor-settled "$T/f10_a" "$T/f10_b" --fields "$FT" --follow 0,120,240 --label-a mame --label-b fbneo
+f10_pair anchor-prefixed "$T/f10_a" "$T/f10_c" --fields "$FT" --follow 0,120 --settle 100
+f10_pair anchor-hole "$T/f10_a" "$T/f10_h" --fields "$FT" --follow 0,60
+f10_pair exact "$T/f10_a" "$T/f10_b" --fields "$FT" --exact
+f10_pair exact-skip "$T/f10_a" "$T/f10_b" --fields "$FT" --exact --skip-fields p1_anim_ptr,p2_anim_ptr,p1_box_ids,p2_box_ids
+f10_pair no-dumps "$T/f10_none" --list-anchors
+[ "$d10" = 0 ] && ok "F10 compare-fields: $n10 invocations (anchors, anchor mode with settled fields and a driver-prefixed side, a hole, --exact, --skip-fields, the errors), text and exit identical" || fail "F10 compare-fields: $d10 of $n10 differ"
+n10=0; d10=0
+f10_dumps() {  # f10_dumps <label> <args…>
+    lbl="$1"; shift
+    a10="$( (set +e; cd "$V" && python3 tools/check_wram_dumps.py "$@" 2>&1; echo "rc=$?") )"
+    b10="$( (set +e; cd "$V" && python3 -m bbh.check_dumps --config "$CFG" "$@" 2>&1; echo "rc=$?") )"
+    n10=$((n10 + 1)); [ "$a10" = "$b10" ] || { d10=$((d10 + 1)); [ $d10 -le 3 ] && { echo "  DIFF check-dumps $lbl"; printf '%s\n' "$a10" | sed 's/^/        lineage| /' | head -6; printf '%s\n' "$b10" | sed 's/^/        bbh    | /' | head -6; }; }
+}
+f10_dumps ok "$T/f10_a" --first 2300 --last 2419
+f10_dumps ok-quiet "$T/f10_a" --first 2300 --last 2419 --quiet
+f10_dumps contiguous "$T/f10_a" --contiguous
+f10_dumps two-sizes "$T/f10_a" --contiguous --size 0x300
+f10_dumps hole "$T/f10_h" --first 2300 --last 2419
+f10_dumps hole-contig "$T/f10_h" --contiguous
+f10_dumps outside "$T/f10_a" --first 2300 --last 2400
+f10_dumps addr "$T/f10_a" --first 2300 --last 2419 --addr 0xFF8000
+f10_dumps prefixed "$T/f10_c" --contiguous
+f10_dumps nodir "$T/f10_none" --contiguous
+f10_dumps empty "$V/tests/replays" --contiguous
+[ "$d10" = 0 ] && ok "F10 check-dumps: $n10 invocations (complete, --quiet, --contiguous, mixed sizes, a hole both ways, outside, --addr, a prefixed side, no dir, no dumps), text and exit identical" || fail "F10 check-dumps: $d10 of $n10 differ"
 
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then

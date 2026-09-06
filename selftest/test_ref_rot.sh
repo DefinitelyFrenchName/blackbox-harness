@@ -101,7 +101,7 @@ printf '%s\n' "$o5" | grep -q '  build/live             g_live.sh               
     && ok "no [fingerprint] section here, so the images have no program members: the fingerprint's EXIT is caught and the image reads as unregistered, the verdict untouched" || fail "SystemExit guard: $(printf '%s\n' "$o5" | grep g_live)"
 
 echo "== 5. the shipped example =="
-"$BBH_HOME/bin/bbh" ref-rot --config "$BBH_HOME/example/bbh.toml" | grep -q '^== 2 live, 0 unbuilt, 0 ROTTED' && ok "example/: its two image defaults are live" || fail "the example's references"
+"$BBH_HOME/bin/bbh" ref-rot --config "$BBH_HOME/example/bbh.toml" | grep -q '^== 3 live, 0 unbuilt, 0 ROTTED' && ok "example/: its three image defaults are live" || fail "the example's references"
 
 echo
 [ "$rc" = 0 ] && echo "PASS: a rotted reference is named, an absent one is not a failure, currency is a report" || { echo "FAIL: see above"; exit 1; }

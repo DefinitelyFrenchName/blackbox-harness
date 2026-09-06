@@ -1,0 +1,15 @@
+# fields.tsv — the fake machine's MAPPED FIELDS, compared at sync anchors by
+# `bbh compare-fields` (the dual-implementation protocol; drivers/README.md).
+# Columns: name <TAB> base <TAB> addr <TAB> width <TAB> phase <TAB> note
+#   base:  abs | p1 | p2 — the bases below (they override [fields].bases)
+#   phase: stable = every follow offset; settled = offsets >= --settle;
+#          phase = --exact only (the hook writes `late` a frame late)
+# base p1=0x400
+# base p2=0x402
+mode	abs	0x100	1	stable	the machine mode (0 attract, 1 select, 2 match, 3 over)
+timer	abs	0x102	2	stable	the round timer, counting down from match start
+credits	abs	0x104	1	stable
+p1_hp	p1	0x0	1	stable	100 at match start
+p2_hp	p2	0x0	1	stable
+p1_port	abs	0x58	2	settled	the P1 port mirror
+late	abs	0x700	1	phase	the hook's late byte — differs frame-exact between base and a hooked build

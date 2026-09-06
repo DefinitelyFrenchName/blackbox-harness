@@ -8,13 +8,13 @@ the one hand-maintained input; `tier` from the two plain registries.
 Regenerate with `../bin/bbh gate-index --config bbh.toml`; `tests/g_hygiene.sh`
 fails when this file is stale or a gate has no family row.
 
-**11 scripts** — 6 ci_portable, 1 ci_static, 4 driver-tier (run by name).
+**12 scripts** — 6 ci_portable, 1 ci_static, 5 driver-tier (run by name).
 
 | family | scripts | what the family is |
 |---|---|---|
 | [runner](#runner) | 2 | the instrument check and the tier-classifier fixture |
 | [classify](#classify) | 6 | one gate per verdict the classifier must get right |
-| [suite](#suite) | 2 | the replay suite on the fake machine, green and refusing |
+| [suite](#suite) | 3 | the replay suite on the fake machine, green and refusing |
 | [hygiene](#hygiene) | 1 | the expectation and gate hygiene checks, run as a consumer runs them |
 
 ## runner
@@ -45,6 +45,7 @@ the replay suite on the fake machine, green and refusing.
 
 | gate | kind | tier | needs | locks (the script's own header) | since |
 |---|---|---|---|---|---|
+| `tests/g_fields.sh` | test | driver | a build dir, ~2 s | the DUAL-IMPLEMENTATION protocol on the fake machine: the base image and the hooked build agree on every mapped field at the match-start anchor and after it, and differ frame-exact on the hook's phase field (the must-fire: | — |
 | `tests/g_suite.sh` | test | driver | the suite, a build dir, ~3 s | the replay suite is GREEN on a registered build. The build dir is the argument (the sweep passes %BUILD_A%); default roms/build-a. ~3 s. | — |
 | `tests/g_suite_refuses.sh` | test | driver | the suite, a build dir, ~1 s | the suite REFUSES an unregistered image loudly: the must-fire control of fingerprint dispatch. The image dir is the argument (the sweep passes %HOOK%); default roms/hook. ~1 s. | — |
 

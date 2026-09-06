@@ -16,4 +16,5 @@ tests/g_skip_indent.sh	classify
 tests/g_static_pass.sh	classify
 tests/g_suite.sh	suite
 tests/g_suite_refuses.sh	suite
+tests/g_fields.sh	suite
 tests/g_hygiene.sh	hygiene

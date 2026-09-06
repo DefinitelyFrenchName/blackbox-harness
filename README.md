@@ -27,7 +27,7 @@ survived is here; what did not stayed there.
 | **the sweep runner** (`bbh run-sweep`) | every instrument-tier gate from the sweep registry, in lanes; the prereq lane first and serial, a red there stops the run; scope and cadence columns, `--freeze` naming what it dropped; `%PLACEHOLDER%` args and `VAR=value` environment; per-row timeouts; `--jobs` with per-slot scratch; `--resume`; the banner that IDENTIFIES the builds (fingerprinted) and the instruments; the anti-orphan check both ways | H4 |
 | **expectation and gate hygiene** (`bbh provenance`, `bbh header-defaults`, `bbh ref-rot`, `bbh gate-index`; `lib/sh/shadow_tools.sh`, `lib/sh/accounting.sh`) | every frozen expectation file has a row in a register naming a CLOSED evidence class (a red gate is a question, and its first question is which side rests on a measurement); a gate's header names the default its CODE uses; a hard-coded path default that exists but is too old is ROTTED (absent is not rotted; currency is reported, never failed); the gate index is GENERATED from the headers and a family TSV, complete both ways; a perturbation control edits a shadow copy, never the tracked tool; a battery cannot print GREEN while a gate self-skipped — the one header parser (`gate_header.py`) under all of it | H5 |
 | the MAME Lua layer with machine profiles, the MAME / FBNeo drivers, recordings | H6 |
-| mapped-field comparison at anchors, dump completeness | H7 |
+| **mapped-field comparison at anchors, and dump completeness** (`bbh compare-fields`, `bbh check-dumps`) | the dual-implementation protocol: two implementations traverse identical states on different frame indices, so the comparable thing is the MAPPED state (a fields TSV) at the debounced rising edge of a predicate on the dumped RAM, at the anchor and at offsets after it — `--exact` for same-implementation runs; the predicate, the bases and the debounce are the consumer's `[fields]`; and because the comparator GLOBS, the producer asserts the dump set is complete first (a hole silently moves an anchor) | H7 |
 
 Every piece ships with its ground truth under `selftest/` — ROM-free, no
 emulator — and most selftests carry a MUST-FIRE control: an input perturbed
@@ -80,11 +80,11 @@ bin/        bbh (dispatcher), bbh-run-static, bbh-run-suite, bbh-run-sweep, bbh-
 lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh shadow_tools.sh accounting.sh
 lib/py/bbh/ config.py toml_subset.py tier.py demand_after_trap.py thresholds.py logfmt.py fingerprint.py rpl.py
             compare_flicker.py compare_window.py compare_composite.py check_diverge.py describe_masked_shape.py
-            gate_header.py gen_gate_index.py header_defaults.py ref_rot.py provenance.py
+            gate_header.py gen_gate_index.py header_defaults.py ref_rot.py provenance.py compare_fields.py check_dumps.py
 drivers/    README.md (THE DRIVER CONTRACT), fake.sh
-selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks F1/F3/F4/F5/F6/F7/F9)
+selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks F1/F3/F4/F5/F6/F7/F9/F10)
 example/    a complete tiny consumer: fakesys/ (the fake machine + ROM generator), roms/, replays/, expected/, tests/
-            (+ consumers/ for real ones)
+            (+ consumers/ for real ones); tests/fields.tsv + g_fields.sh: the dual-implementation protocol on the fake
 docs/       gate_contract.md config.md hygiene.md method/oracle_classes.md
 ```
 

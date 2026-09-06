@@ -133,3 +133,15 @@ scope = [["expected", ""]]
 exclude = ["PROVENANCE.md", "README.md"]
 evidence_classes = ["registry", "self-frozen", "authored", "measured (two runs compared)"]
 rests_on_column = 4
+
+# --- slice H7: the dual-implementation protocol on the fake (tests/fields.tsv, tests/g_fields.sh) ---
+[fields]
+table = "tests/fields.tsv"
+dump_regex = '(?:^|\.)dump_(\d+)_([0-9a-fA-F]{6})\.bin$'
+bases = { p1 = 0x400, p2 = 0x402 }                  # the two HP bytes (tests/fields.tsv carries the same as headers)
+anchor = [[0x100, 1, 2], [0x400, 1, 100], [0x402, 1, 100]]   # mode == match and both HPs at 100: the match start
+anchor_hint = "dump 0100-0110 and 0400-0404"
+stable = 30
+settle = 60
+integrity_hint = ["A glob-based comparison would have silently used a DIFFERENT",
+                  "frame set. Do not compare this run."]

@@ -146,3 +146,15 @@ exclude = ["PROVENANCE.md"]
 evidence_classes = ["in-emulator (reference)", "in-emulator (ours)", "in-emulator (reference + ours)",
                     "derived", "static", "hash-lock", "registry"]   # the CLOSED vocabulary of `rests on`
 rests_on_column = 4
+
+# --- slice H7: mapped fields at sync anchors + dump completeness (docs/config.md [fields]) ---
+[fields]
+table = "tests/fields_m2a.tsv"                      # name/base/addr/width[/phase[/note]]; `# base p1=0x…` headers override `bases`
+dump_regex = '(?:^|\.)dump_(\d+)_([0-9a-fA-F]{6})\.bin$'
+bases = { p1 = 0xFF8400, p2 = 0xFF8800 }           # a field's base column -> the address added to its addr
+anchor = [[0xFF8004, 4, 0x40000], [0xFF8008, 4, 0x40000], [0xFF8450, 2, 0x120], [0xFF8850, 2, 0x120]]   # all true = match start
+anchor_hint = "dump $FF8000-$FF8300 and $FF8400-$FF8C00 windows"
+stable = 30                                         # the edge must hold this many frames
+settle = 120                                        # `settled` fields join at this offset
+integrity_hint = ["A glob-based comparison would have silently used a DIFFERENT",
+                  "frame set. Do not compare this run — see docs/platform/gotchas.md."]

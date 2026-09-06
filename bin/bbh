@@ -19,6 +19,8 @@
 #   bbh header-defaults [--config bbh.toml] [--fix]         a header names the default its code uses (H5)
 #   bbh ref-rot [--config bbh.toml]                          a hard-coded path default has not rotted (H5)
 #   bbh provenance [--config bbh.toml] [--page FILE]         every frozen expectation says where its numbers came from (H5)
+#   bbh compare-fields <dir_a> <dir_b> --fields <tsv> [--exact|--follow …]   mapped fields at sync anchors (lib/py/bbh/compare_fields.py; H7)
+#   bbh check-dumps <dir> --first F --last L | --contiguous              a dump set is complete (lib/py/bbh/check_dumps.py; H7)
 #   bbh doctor [--config bbh.toml]  is this host able to run the harness?
 #   bbh selftest                  the harness's own gate chain (selftest/run.sh)
 #
@@ -27,7 +29,7 @@
 # / ./bbh.toml. Slice H6 adds the MAME drivers.
 set -eu
 BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
-[ $# -ge 1 ] || { sed -n '2,24p' "$0"; exit 2; }
+[ $# -ge 1 ] || { sed -n '2,26p' "$0"; exit 2; }
 cmd="$1"; shift
 PYTHONPATH="$BBH_HOME/lib/py${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH
 case "$cmd" in
@@ -49,8 +51,10 @@ gate-index)        exec python3 -m bbh.gen_gate_index "$@" ;;
 header-defaults)   exec python3 -m bbh.header_defaults "$@" ;;
 ref-rot)           exec python3 -m bbh.ref_rot "$@" ;;
 provenance)        exec python3 -m bbh.provenance "$@" ;;
+compare-fields)    exec python3 -m bbh.compare_fields "$@" ;;
+check-dumps)       exec python3 -m bbh.check_dumps "$@" ;;
 doctor)            exec "$BBH_HOME/bin/bbh-doctor" "$@" ;;
 selftest)          exec "$BBH_HOME/selftest/run.sh" "$@" ;;
--h|--help|help)    sed -n '2,24p' "$0"; exit 0 ;;
+-h|--help|help)    sed -n '2,26p' "$0"; exit 0 ;;
 *) echo "bbh: unknown command '$cmd' (try bbh help)" >&2; exit 2 ;;
 esac
