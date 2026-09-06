@@ -2,7 +2,8 @@
 # test_fidelity_vampire.sh — FIDELITY against the lineage: the generic runner
 # and this harness's tier classifier reproduce Project VAMPIRE SAVED's
 # verdicts over the SAME input (harness_scope.md §5 there). SKIPs when that
-# tree is not beside this one. ROM-free, ~5 s (F2 opt-in, ~2 min).
+# tree is not beside this one. ROM-free, ~65 s with F5 sampled (F5 at every
+# spec ~4 min; F2 opt-in, ~2 min).
 #
 #   F1  both static runners over one synthetic fake repo of stub gates:
 #       output identical (durations normalised); with a gate that exits 0
@@ -12,6 +13,8 @@
 #   F3  the tier classifier over the lineage's 304 gates: the INSTRUMENT set
 #       minus the plain registries minus `run_` names == its sweep registry;
 #       every PLAIN gate is in a plain registry; every sweep row exists.
+#   F5  every .masked spec of the lineage through both masked_compare
+#       implementations, verdict text to the character (1,891/1,891 at H2).
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.
