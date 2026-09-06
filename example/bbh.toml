@@ -32,3 +32,32 @@ skip_regex = '^ *SKIP'
 shell_error_regex = '\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: '
 timeout_exits = [124, 137]
 fail_tail = 4
+
+[thresholds]
+flicker_max = 2
+reconverge = 60
+flicker_max_total = 8
+
+[suite]
+replays_dir = "replays"
+expected_dir = "expected"
+registry = "expected/registry.tsv"
+default_set = "fake"
+driver = "fake"                    # drivers/fake.sh; a path from this root names a consumer's own
+runs_per_replay = 2
+mask_env = "MASK_RANGES"
+# the fake machine's "stack" $FF80-$FFFF carries a hooked build's cycle-cost
+# noise every frame; masked bytes are SKIPPED from the hash (a mask is a BASIS)
+mask_default = "ff00-10000"
+rompath_env = "FAKE_ROMPATH"
+input_env = "FAKE_ROOT"
+hermetic_unset = ["POKES", "DUMPS", "SNAP_FRAMES", "TAIL_FRAMES", "VIDEO_OUT",
+                  "INPUT_OUT", "INPUT_INJECT_TEST", "NO_INPUT_CHECK"]
+hash_cmd = "shasum"
+
+[fingerprint]
+kind = "zip-members"
+program_member_regex = '\.(0[1-9])$'      # fake.01, fake.02 are the program; fake.gfx / fake.key are not
+parent_sets = []
+region_rules = [['\.key$', 'key'], ['\.gfx$', 'gfx'], ['@program', 'prg']]
+region_default = "other"

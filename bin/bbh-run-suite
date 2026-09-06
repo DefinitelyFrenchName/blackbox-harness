@@ -1,0 +1,192 @@
+#!/bin/sh
+# bbh-run-suite — THE ORACLE REPLAY SUITE, auto-detecting: fingerprint the
+# build the driver's search path resolves, look it up in the registry, run
+# every replay against that expectation set.
+#
+# Usage: <INPUT_ENV>=... [<ROMPATH_ENV>="build;ref"] bbh-run-suite [--config bbh.toml]
+#            [--driver <path|name>] [--freeze] [set]
+#
+# The build under test is whatever the driver's search path resolves (the
+# reference input by default; set the rompath variable to front a build).
+# Its fingerprint (lib/py/bbh/fingerprint.py: whole-set key first, program
+# key second) selects <expected_dir>/<expset>/. An unregistered fingerprint
+# FAILS LOUDLY — registry rows are added only at freeze time, as a build
+# decision.
+#
+# For every <replays_dir>/*.rpl: run `runs_per_replay` times through the
+# driver, fail on nondeterminism, then dispatch on the expectation kind:
+#   <name>.skip      not applicable to this set; body = the reason, printed
+#   <name>.pending   MEASURED but no ratified class: a FAILURE that names
+#                    the reason (an unvalidated replay must never read green)
+#   <name>.masked    `<class> <baseset> <args>` — the masked vocabulary of
+#                    lib/sh/masked_compare.sh (exact / flicker / diverge /
+#                    window / composite), both runs under the set's mask
+#   <name>.diverge   `<baseset> <frame>` — line-identical to the frozen full
+#                    log through frame-1, first divergence EXACTLY there
+#   <name>.sha1      whole-log SHA-1 equality (the default)
+#   (none)           NO-EXPECTATION, a failure
+#   --freeze         write .sha1 + a full log copy instead of comparing;
+#                    authored .skip/.masked are left alone; a self-frozen
+#                    .diverge is RETIRED to .diverge.superseded (dispatch
+#                    consults it first, so leaving it would make the new
+#                    freeze unreachable while printing "frozen")
+#   SUITE_ONLY="a b" run only the named replays — an authoring aid, never a
+#                    verdict (the summary says FILTERED)
+#
+# Lineage: VampireSaved's tests/run_suite.sh. EVERY PRINTED VERDICT LINE IS
+# THAT SCRIPT'S TEXT, character for character — fidelity F7 diffs the two
+# over the same expectation trees; the wording is frozen until H9.
+# Config: [suite] replays_dir, expected_dir, registry, default_set, driver,
+# runs_per_replay, mask_env, mask_default, rompath_env, input_env,
+# hermetic_unset, hash_cmd (docs/config.md).
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/config.sh"
+
+CONFIG=""; FREEZE=0; DRIVER_ARG=""; SET=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --config) shift; CONFIG="${1:?--config needs a file}" ;;
+    --driver) shift; DRIVER_ARG="${1:?--driver needs a path or a harness driver name}" ;;
+    --freeze) FREEZE=1 ;;
+    -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
+    -*) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
+    *) SET="$1" ;;
+    esac
+    shift
+done
+
+bbh_config_init "$CONFIG"
+REPLAYS_DIR="$(bbh_cfg suite.replays_dir)"
+EXPECTED_DIR="$(bbh_cfg suite.expected_dir)"
+[ -n "$SET" ] || SET="$(bbh_cfg suite.default_set)"
+DRIVER="${DRIVER_ARG:-$(bbh_cfg suite.driver)}"
+RUNS="$(bbh_cfg suite.runs_per_replay)"
+MASK_ENV="$(bbh_cfg suite.mask_env)"
+ROMPATH_ENV="$(bbh_cfg suite.rompath_env)"
+INPUT_ENV="$(bbh_cfg suite.input_env)"
+HERMETIC="$(bbh_cfg suite.hermetic_unset "")"
+HASH_CMD="$(bbh_cfg suite.hash_cmd)"
+BBH_MASK_DEFAULT="$(bbh_cfg suite.mask_default)"; export BBH_MASK_DEFAULT
+. "$BBH_HOME/lib/sh/masked_compare.sh"
+
+# The reference-input variable is demanded, and made ABSOLUTE (the lineage,
+# 14z-132: gates cd into work dirs and then compose paths that still contain
+# it; a relative value silently resolves to nothing). Kept a VARIABLE — only
+# absolutised, and only if it exists.
+eval "INPUT=\${$INPUT_ENV:-}"
+[ -n "$INPUT" ] || { echo "FAIL: set $INPUT_ENV to the reference-input directory"; exit 1; }
+if [ -d "$INPUT" ]; then INPUT="$(cd "$INPUT" && pwd)"; eval "$INPUT_ENV=\"\$INPUT\""; export "$INPUT_ENV"; fi
+eval "ROMPATH=\${$ROMPATH_ENV:-\$INPUT}"
+
+case "$DRIVER" in
+*/*) case "$DRIVER" in /*) ;; *) DRIVER="$BBH_ROOT/$DRIVER" ;; esac ;;
+*)   DRIVER="$BBH_HOME/drivers/$DRIVER.sh" ;;
+esac
+[ -x "$DRIVER" ] || { echo "FAIL: driver '$DRIVER' is not executable (see drivers/README.md)"; exit 1; }
+
+cd "$BBH_ROOT"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# HERMETIC (the lineage, 14z-90 issue #3): nothing from the caller's shell may
+# reach a frozen log — the freeze side scrubs these before writing a basis,
+# and the compare side must be equally hermetic or the two are not measuring
+# the same thing.
+# shellcheck disable=SC2086
+[ -z "$HERMETIC" ] || unset $HERMETIC || true
+
+EXPSET=$(python3 -m bbh.fingerprint "$ROMPATH" --set "$SET") \
+    || { echo "unregistered build fingerprint — see message above"; exit 1; }
+EXPDIR="$BBH_ROOT/$EXPECTED_DIR/$EXPSET"
+EXPROOT="$BBH_ROOT/$EXPECTED_DIR"
+mkdir -p "$EXPDIR"
+echo "build fingerprint -> expectation set '$EXPSET'"
+
+check_diverge() {   # check_diverge <log> <spec-file> -> prints verdict, returns 0/1
+    python3 -m bbh.check_diverge "$1" "$2" "$EXPROOT"
+}
+
+MASK="$(masked_mask_for "$EXPDIR")"
+if [ -f "$EXPDIR/mask" ]; then
+    echo "per-set mask: $MASK"
+fi
+
+run_driver() {   # run_driver <mask> <rpl> <out>
+    env "$MASK_ENV=$1" "$DRIVER" "$SET" "$2" "$3"
+}
+
+fail=0
+[ -n "${SUITE_ONLY:-}" ] && echo "FILTERED RUN (SUITE_ONLY) — not a suite verdict"
+for rpl in "$BBH_ROOT/$REPLAYS_DIR"/*.rpl; do
+    [ -f "$rpl" ] || continue
+    name="$(basename "$rpl" .rpl)"
+    if [ -n "${SUITE_ONLY:-}" ]; then
+        case " $SUITE_ONLY " in *" $name "*) ;; *) continue ;; esac
+    fi
+    printf '%-24s ' "$name"
+    if [ -f "$EXPDIR/$name.skip" ]; then
+        echo "SKIP ($(cat "$EXPDIR/$name.skip"))"
+        continue
+    fi
+    if [ -f "$EXPDIR/$name.pending" ]; then
+        echo "PENDING — not validated"
+        sed 's/^/                         /' "$EXPDIR/$name.pending"
+        fail=1
+        continue
+    fi
+    RUNMASK=""
+    [ -f "$EXPDIR/$name.masked" ] && RUNMASK="$MASK"
+    i=1; runfail=0
+    while [ "$i" -le "$RUNS" ]; do
+        run_driver "$RUNMASK" "$rpl" "$WORK/$name.$i.log" || { runfail=1; break; }
+        i=$((i + 1))
+    done
+    if [ "$runfail" = 1 ]; then echo "RUN-FAIL"; fail=1; continue; fi
+    i=2; nondet=0
+    while [ "$i" -le "$RUNS" ]; do
+        if ! cmp -s "$WORK/$name.1.log" "$WORK/$name.$i.log"; then
+            echo "NONDETERMINISTIC (first divergent frame below)"
+            diff "$WORK/$name.1.log" "$WORK/$name.$i.log" | head -3
+            nondet=1; break
+        fi
+        i=$((i + 1))
+    done
+    if [ "$nondet" = 1 ]; then fail=1; continue; fi
+    sha=$($HASH_CMD "$WORK/$name.1.log" | cut -d' ' -f1)
+    if [ "$FREEZE" = 1 ] && [ -n "$RUNMASK" ]; then
+        echo "authored .masked expectation — not self-frozen"
+    elif [ "$FREEZE" = 1 ]; then
+        echo "$sha" > "$EXPDIR/$name.sha1"
+        mkdir -p "$EXPDIR/logs"
+        cp "$WORK/$name.1.log" "$EXPDIR/logs/$name.log"
+        if [ -f "$EXPDIR/$name.diverge" ]; then
+            mv "$EXPDIR/$name.diverge" "$EXPDIR/$name.diverge.superseded"
+            echo "  RETIRED $name.diverge ($(cat "$EXPDIR/$name.diverge.superseded"))"
+            echo "  -> kept as $name.diverge.superseded; the new .sha1 now governs."
+        fi
+        echo "frozen $sha"
+    elif [ -n "$RUNMASK" ]; then
+        if verdict=$(masked_check "$EXPDIR" "$name" \
+                        "$(cat "$EXPDIR/$name.masked")" \
+                        "$RUNMASK" "$WORK/$name.1.log"); then
+            echo "$verdict"
+        else
+            echo "$verdict"; fail=1
+        fi
+    elif [ -f "$EXPDIR/$name.diverge" ]; then
+        check_diverge "$WORK/$name.1.log" "$EXPDIR/$name.diverge" || fail=1
+    elif [ ! -f "$EXPDIR/$name.sha1" ]; then
+        echo "NO-EXPECTATION (freeze after review, as a STATE.md decision)"
+        fail=1
+    elif [ "$sha" = "$(cat "$EXPDIR/$name.sha1")" ]; then
+        echo "PASS"
+    else
+        echo "FAIL expected $(cat "$EXPDIR/$name.sha1") got $sha"
+        cp "$WORK/$name.1.log" "$WORK/$name.divergent.log" 2>/dev/null || true
+        fail=1
+    fi
+done
+
+[ "$fail" = 0 ] && echo "SUITE GREEN" || echo "SUITE RED"
+exit "$fail"

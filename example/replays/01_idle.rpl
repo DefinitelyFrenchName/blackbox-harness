@@ -1,0 +1,4 @@
+# 01: touch nothing. The attract demo starts at frame 900, so a 300-frame
+# script (+120 tail) never reaches it: every build is bit-identical to base
+# here except through the masked stack noise of a hooked one.
+300 wait

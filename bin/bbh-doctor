@@ -39,6 +39,11 @@ if [ -n "$CONFIG" ] || [ -f "${BBH_CONFIG:-bbh.toml}" ]; then
     rm -f "$BBH_HOME/.doctor_err"
     g="$(bbh_cfg project.gates_dir)"
     [ -d "$BBH_ROOT/$g" ] && ok "gates dir: $g" || bad "gates dir '$g' not found under $BBH_ROOT"
+    d="$(bbh_cfg suite.driver)"
+    case "$d" in */*) case "$d" in /*) ;; *) d="$BBH_ROOT/$d" ;; esac ;; *) d="$BBH_HOME/drivers/$d.sh" ;; esac
+    [ -x "$d" ] && ok "suite driver: $d" || bad "suite driver '$d' is not executable ([suite].driver; drivers/README.md)"
+    r="$(bbh_cfg suite.registry)"
+    [ -f "$BBH_ROOT/$r" ] && ok "registry: $r ($(grep -vc '^#' "$BBH_ROOT/$r" | tr -d ' ') rows)" || note "no registry at $r yet (the suite writes nothing there; rows are added at freeze time)"
 else
     note "no config given and no ./bbh.toml — consumer checks skipped"
 fi

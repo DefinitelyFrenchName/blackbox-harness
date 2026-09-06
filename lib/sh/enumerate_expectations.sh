@@ -28,6 +28,10 @@ enumerate_expectations() {
             # self-frozen to ONE image; another image differs by construction,
             # so these are never a reference-comparison leg.
             sha1)    echo "$_ee_stem|sha1|N/A" ;;
+            # the frozen first-divergence constant against a FULL base log
+            # (H3: the lineage's copy had no case for it — it carried zero
+            # live .diverge files and would have reported one UNKNOWN-KIND)
+            diverge) echo "$_ee_stem|diverge|EVAL" ;;
             pending) echo "$_ee_stem|pending|NOT-EVALUATED"; _ee_bad=1 ;;
             *)       echo "$_ee_stem|$_ee_ext|UNKNOWN-KIND"; _ee_bad=1 ;;
         esac

@@ -1,0 +1,7 @@
+# 04: coin, start, and a press inside the select screen: a `hook,select`
+# build shows one flicker frame (220) AND one window (260-359) — the
+# COMPOSITE class, the strict conjunction of the two.
+100 sys=C1
+200 sys=S1
+220 p1=1
+500 wait

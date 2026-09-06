@@ -51,6 +51,29 @@ DEFAULTS = {
         "replays_dir": "tests/replays",
         "expected_dir": "tests/expected",
         "mask_default": "043c-043d,4182-41a2,7f00-8000",
+        # H3 — the suite runner (bin/bbh-run-suite)
+        "registry": "tests/expected/registry.tsv",   # fingerprint -> expectation set
+        "default_set": "vsavj",                      # the set run when none is named
+        "driver": "tools/run_replay_mame.sh",        # a path from the root, or a bare harness driver name (drivers/<name>.sh)
+        "runs_per_replay": 2,                        # every replay run this many times; any difference = NONDETERMINISTIC
+        "mask_env": "MASK_RANGES",                   # the variable the driver reads the mask from
+        "rompath_env": "MAME_ROMPATH",               # the variable naming the build's search path (falls back to input_env)
+        "input_env": "ROMDIR",                       # the reference-input directory; demanded at the entrance
+        "hermetic_unset": ["POKES", "DUMPS", "SNAP_FRAMES", "TAIL_FRAMES", "VIDEO_OUT",
+                           "INPUT_OUT", "INPUT_INJECT_TEST", "NO_INPUT_CHECK"],
+        "hash_cmd": "shasum",                        # prints "<hex> <file>"; sha1sum on Linux
+    },
+    "fingerprint": {
+        "kind": "zip-members",                       # zip-members | file-sha1 | command
+        "program_member_regex": r"\.(0[3-9]|10|4[1-4])[a-ln-z]?$",   # group 1 = the member's order
+        "parent_sets": ["vsav"],                     # images --full folds in along the search path
+        "region_rules": [[r"\.key$", "key"], [r"\.0[12]$", "z80"],
+                         [r"^vsw\..*m$", "gfx/qsnd"], [r"^vsw\.", "prg"],
+                         ["@program", "prg"]],       # --full's per-region breakdown, first match wins; @program = the program regex
+        "region_default": "gfx/qsnd",
+        "file_pattern": "{set}.bin",                 # kind file-sha1: the image's name
+        "program_command": "",                       # kind command: print the program key
+        "wholeset_command": "",                      # kind command: print the whole-set key
     },
     "classify": {
         "skip_regex": r"^ *SKIP",

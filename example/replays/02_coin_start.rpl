@@ -1,0 +1,6 @@
+# 02: coin, then 1P start at 200: the select screen opens (mode 1) and a
+# `select` build touches one byte for frames 260-359 — ONE bounded window,
+# then full re-convergence before the match starts at 400.
+100 sys=C1
+200 sys=S1
+500 wait

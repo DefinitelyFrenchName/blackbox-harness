@@ -1,0 +1,94 @@
+# The driver contract — how the suite drives a machine
+
+A DRIVER runs one replay on one machine and writes one checksum log. The
+suite runner (`bbh run-suite`), the comparators and the fidelity checks
+never know which machine is behind it; they know this contract. Every
+driver in this directory — and any a consumer writes — has the same four
+arguments, honours the same environment, and writes the same grammar.
+
+## 1. The invocation
+
+```
+<driver> <set> <replay.rpl> <out.log> [sandbox]
+```
+
+| argument | meaning |
+|---|---|
+| `set` | the machine's image name — the emulator's set name, the fake's `<set>.zip` |
+| `replay.rpl` | the input script (`lib/py/bbh/rpl.py` is the grammar); a relative path is made absolute before the machine sees it |
+| `out.log` | the checksum log to write; made absolute; **removed before the run** so "no END line" can never be satisfied by a previous run's file |
+| `sandbox` | optional: a directory the machine may treat as its home (cfg, nvram, snapshots, its own stderr log); made absolute; a fresh temp dir when omitted |
+
+The build under test is what the driver's SEARCH PATH resolves: the
+variable is the driver's own (`MAME_ROMPATH`, `FBNEO_ROMPATH`,
+`FAKE_ROMPATH`) and the suite names it in `[suite].rompath_env`, falling
+back to the reference-input variable (`[suite].input_env`, the lineage's
+`ROMDIR`). A driver documents its variable in its header.
+
+## 2. The environment — the replay family (every driver)
+
+| variable | meaning | on a driver that cannot honour it |
+|---|---|---|
+| `MASK_RANGES` | `lo-hi,...` hex OFFSETS from the checksum window's base, end exclusive; masked bytes are SKIPPED from the hash, so a mask defines a BASIS (a log under one mask is never comparable to a log under another) | REFUSE (the crash guard's precedent: its `-debug` timeline is not checksum-comparable, so it refuses a mask rather than emit a log a gate would compare) |
+| `DUMPS` | `frame:lo-hi;...` — at the END of frame N, the RAM range to `dump_<frame>_<lo>.bin` beside the log | REFUSE |
+| `POKES` | `frame:addr:hexbytes;...` — scheduled RAM writes, applied at the start of the frame | REFUSE |
+| `SNAP_FRAMES` | `f,f,...` — a snapshot of the screen at those frames, into the sandbox | REFUSE |
+| `VIDEO_OUT` | a path: a SECOND hash log over the framebuffer, same grammar, written to a separate file so no RAM expectation moves (a RAM-only gate is structurally blind to the whole video path) | REFUSE |
+| `INPUT_OUT` | a path: per-frame raw port values `<frame> <p...>` — the detector for host input leaking into the emulated controls | REFUSE |
+| `TAIL_FRAMES` | frames to keep running after the last scripted input (default 120) | honour |
+| `NO_INPUT_CHECK` | disables the input-integrity assertion (analysis only) | honour or REFUSE, never ignore |
+| `INPUT_INJECT_TEST` | `<frame>`: the assertion's MUST-FIRE control — the machine simulates a foreign press and the log must carry an `INPUT-VIOLATION` line | honour if the assertion exists |
+
+The guard family — `GUARD_DEBUG`, `GUARD_PROBE`, `GUARD_PROBE_COND`,
+`GUARD_TRACE`, `GUARD_PC_LOG`, `GUARD_BREAK`, `GUARD_MATCH`,
+`CRASH_VECTORS`, `CODE_RANGES` — belongs to the GUARDED drivers
+(`mame_guarded.sh`, H6). A plain driver REFUSES them.
+
+**THE RULE: a driver that cannot honour a variable REFUSES it — prints
+`REFUSED: <driver> cannot honour <VAR> (<why>)` and exits 3 — and never
+ignores it.** A caller that set the variable is measuring something; a run
+that silently did not measure it is the false green every gate here exists
+to remove. (The lineage's FBNeo driver has no `MASK_RANGES`; the lineage
+passed masks to it for a session before a gate noticed the logs were
+unmasked.)
+
+The suite scrubs `[suite].hermetic_unset` from its environment before any
+driver runs, so nothing from the caller's shell reaches a frozen
+expectation.
+
+## 3. The output — the log grammar
+
+```
+<frame> <hash>        one line per frame, frame 1 first; hash = the state at the END of the frame
+...
+INPUT-VIOLATION <n> <detail>    only if the integrity assertion fired; BEFORE END, where every consumer trips on it
+END <n>               last; n = the number of frames run
+```
+
+`<hash>` is any fixed-width hex token the machine computes over its
+checksum window minus the mask; the harness compares tokens, never
+interprets them. The guarded grammar adds `CRASH <frame> <vector> PC <pc>`,
+`REGS …`, `STACK …`, `PCWEEDS …`, `SOFTRESET …` and ends with `END-CRASH
+<frame>` instead of `END`. `lib/py/bbh/logfmt.py` is the one reader.
+
+## 4. The exit status
+
+| exit | meaning |
+|---|---|
+| 0 | the log is complete (`END` present) and carries no `INPUT-VIOLATION` |
+| 1 | the machine failed, the log has no `END`, or an `INPUT-VIOLATION` was written — the driver prints the machine's own log and the run is DISCARDED (never compared against anything) |
+| 2 | the guard tripped (`CRASH` / `PCWEEDS` / `SOFTRESET` / `END-CRASH`): the log is the bug report |
+| 3 | a variable was REFUSED |
+
+## 5. The drivers here
+
+| driver | machine | search path | notes |
+|---|---|---|---|
+| `fake.sh` | `example/fakesys/fakesys.py` | `FAKE_ROMPATH` (or `FAKE_ROOT`) | honours the whole replay family; refuses the guard family; `FAKE_BUILD`, `FAKE_NONDET`, `FAKE_CRASH_AT` are its own knobs (H3) |
+| `mame.sh` | MAME + `lua/mame/replay.lua` under a machine profile | `MAME_ROMPATH` | H6 |
+| `mame_guarded.sh` | MAME + `replay_guard.lua` | `MAME_ROMPATH` | H6; refuses `MASK_RANGES` |
+| `fbneo.sh` | the patched FBNeo frontend | `FBNEO_ROMPATH` | H6; maps `DUMPS` to `-hdump`, refuses `MASK_RANGES` |
+
+Ground truth: `selftest/test_driver_contract.sh` exercises every row of
+§2 and §4 against `fake.sh`, including the refusal and the must-fire
+control of the integrity assertion.

@@ -1,0 +1,6 @@
+# 03: two player-button presses in attract. A `hook` build writes the press
+# byte one frame LATE — two isolated one-frame divergences: a FLICKER
+# inventory, frozen per replay.
+100 p1=1
+250 p1=2
+300 wait

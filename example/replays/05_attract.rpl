@@ -1,0 +1,5 @@
+# 05: idle long enough for the attract demo (frame 900 on). An `attract`
+# build diverges there and never re-converges: the FROZEN FIRST-DIVERGENCE
+# constant, as the unmasked `.diverge` kind (attract) and as the masked
+# `diverge` class (build-a).
+1000 wait

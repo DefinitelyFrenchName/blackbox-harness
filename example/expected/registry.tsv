@@ -1,0 +1,10 @@
+# registry.tsv — build fingerprint -> expectation set. Rows are added only at
+# freeze time, as a build decision. base and attract are keyed on the PROGRAM
+# key (bbh fingerprint --sha-only); build-a and build-b on the WHOLE-SET key
+# (--set-key), because they share a program key and differ in fake.gfx only —
+# the shape of a gfx-only freeze. roms/hook has NO row on purpose.
+# sha1	expectation-set	notes
+30dacc810ac6313f372f4b3c7b692ffc164aea47	base	the base machine (no features); program key
+3e7a822c9582361bcca1421908b6ab618fb070d7	attract	features=attract; program key
+b1797d36151d765eb4566681cd24a424892a9c20	build-a	features=hook,select,attract + fake.gfx v1; WHOLE-SET key
+73222f75aaa1716d56f57c2c3c19e4fa1b014db1	build-b	features=hook,select,attract + fake.gfx v2; WHOLE-SET key

@@ -15,6 +15,13 @@
 #       every PLAIN gate is in a plain registry; every sweep row exists.
 #   F5  every .masked spec of the lineage through both masked_compare
 #       implementations, verdict text to the character (1,891/1,891 at H2).
+#   F6  the fingerprint: both tools over the same images with every flag —
+#       a synthetic dual-key twin always, the real reference set and a
+#       sample of build dirs when ROMDIR is set (BBH_FIDELITY_F6=all: every
+#       build dir).
+#   F7  the suite's dispatch: both suite runners over the lineage's real
+#       expectation trees in a shadow root with a STUB driver (no MAME),
+#       every verdict line diffed (BBH_FIDELITY_F7=all: every set).
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.
@@ -106,6 +113,111 @@ for spec in "$V"/tests/expected/*/*.masked; do
 done
 [ "$n5" -gt 0 ] && [ "$diff5" = 0 ] && ok "F5: $n5 spec(s) (every ${step}th), verdict text identical to the character, $(( $(date +%s) - t5 )) s" \
     || fail "F5: $n5 specs, $diff5 differ"
+
+echo "== F6. the fingerprint: both tools over the same images, every flag =="
+# The synthetic twin (always): the dual-key shape on fabricated zips. The
+# real images (when ROMDIR is set): the reference set and a SAMPLE of
+# build/*/rompath dirs, BBH_FIDELITY_F6=all for every one. stdout + stderr +
+# exit status, diffed — the NOTE and UNREGISTERED texts included.
+LFP="python3 $V/tools/build_fingerprint.py"; GFP="python3 -m bbh.fingerprint"
+REG6="$V/tests/expected/registry.tsv"; n6=0; d6=0
+fp_pair() {  # fp_pair <rompath> <set> <registry> [flag]
+    # set +e inside: an expected non-zero exit (an unregistered image) must be
+    # RECORDED, not abort the capture under the test's own errexit
+    a6="$( (set +e; $LFP "$1" --set "$2" --registry "$3" ${4:-} 2>&1; echo "rc=$?") )"
+    b6="$( (set +e; cd "$V" && $GFP "$1" --set "$2" --registry "$3" ${4:-} 2>&1; echo "rc=$?") )"
+    n6=$((n6 + 1))
+    [ "$a6" = "$b6" ] || { d6=$((d6 + 1)); [ $d6 -le 3 ] && { echo "  DIFF $1 $2 ${4:-lookup}"; printf '%s\n' "$a6" | sed 's/^/        lineage| /'; printf '%s\n' "$b6" | sed 's/^/        bbh    | /'; }; }
+}
+python3 - "$T" <<'EOF'
+import sys, zipfile, os
+T = sys.argv[1]
+def mk(d, s, members):
+    os.makedirs(d, exist_ok=True)
+    with zipfile.ZipFile(os.path.join(d, s + ".zip"), "w") as z:
+        for n, v in members: z.writestr(n, v)
+mk(f"{T}/s1", "vsavj", [("vsavj.04", b"BBBB"), ("vsavj.03", b"AAAA"), ("vsavj.13m", b"GFX1"), ("vsavj.key", b"K")])
+mk(f"{T}/s2", "vsavj", [("vsavj.04", b"BBBB"), ("vsavj.03", b"AAAA"), ("vsavj.13m", b"GFX2"), ("vsavj.key", b"K")])
+mk(f"{T}/s3", "vsav",  [("vsav.05", b"PPPP"), ("vsav.14m", b"PG")])
+EOF
+sk="$($GFP "$T/s1" --set vsavj --set-key)"; pk="$($GFP "$T/s1" --set vsavj --sha-only)"
+printf '%s\tSETKEY\n' "$sk" > "$T/r_set.tsv"; printf '%s\tPROGKEY\n' "$pk" > "$T/r_prog.tsv"; printf '%s\tP\n%s\tS\n' "$pk" "$sk" > "$T/r_both.tsv"; : > "$T/r_none.tsv"
+for rp in "$T/s1" "$T/s2" "$T/s1;$T/s3" "$T/s2;$T/s1"; do
+    for fl in --sha-only --set-key --full; do fp_pair "$rp" vsavj "$T/r_none.tsv" "$fl"; done
+    for r in r_set r_prog r_both r_none; do fp_pair "$rp" vsavj "$T/$r.tsv"; done
+done
+[ "$d6" = 0 ] && ok "F6 synthetic: $n6 invocations over the dual-key twin (3 flags + 4 registries x 4 search paths), text and exit identical" || fail "F6 synthetic: $d6 of $n6 differ"
+if [ -n "${ROMDIR:-}" ] && [ -d "$ROMDIR" ]; then
+    n6=0; d6=0
+    if [ "${BBH_FIDELITY_F6:-}" = all ]; then dirs="$(ls -d "$V"/build/*/rompath 2>/dev/null)"
+    else dirs="$V/build/m3b_merged23/rompath $V/build/don_stage4_m20/rompath $V/build/merged1/rompath"; fi
+    for rp in "$ROMDIR" $dirs; do
+        [ -d "$rp" ] || continue
+        set6=vsavj; [ -f "$rp/vsavjw.zip" ] && set6=vsavjw
+        for fl in --sha-only --set-key --full; do fp_pair "$rp" "$set6" "$REG6" "$fl"; done
+        fp_pair "$rp" "$set6" "$REG6"; fp_pair "$rp;$ROMDIR" "$set6" "$REG6"
+    done
+    [ "$n6" -gt 0 ] && [ "$d6" = 0 ] && ok "F6 real: $n6 invocations over \$ROMDIR and $(printf '%s\n' $dirs | wc -l | tr -d ' ') build dir(s) (BBH_FIDELITY_F6=all for every one), identical" || fail "F6 real: $d6 of $n6 differ"
+else
+    echo "  (F6 real images not run: set ROMDIR)"
+fi
+
+echo "== F7. the suite's dispatch: both runners over the lineage's expectation trees, no MAME =="
+# A SHADOW ROOT: the lineage's tests/ and tools/ symlinked in, except (a) a
+# STUB driver that copies a candidate log (a DIFFERENT set's frozen log of
+# the same stem, so most verdicts are FAILs with numbers in them, or the
+# set's own logs for the PASS shapes), (b) COPIES of build_fingerprint.py
+# and cps2_decrypt.py so `__file__` resolves inside the shadow, and (c) a
+# synthetic registry mapping one fabricated zip per set to that set. Both
+# runners then dispatch the real .masked / .skip / .pending / .sha1 files.
+# BBH_FIDELITY_F7=all runs every set (~39, several minutes); the default
+# three cover the .pending, .skip, every masked class and the .sha1 kinds.
+S="$T/shadow"; mkdir -p "$S/tools" "$S/tests/expected"
+for f in "$V"/tools/*; do ln -s "$f" "$S/tools/$(basename "$f")"; done
+rm -f "$S/tools/run_replay_mame.sh" "$S/tools/build_fingerprint.py" "$S/tools/cps2_decrypt.py"
+cp "$V/tools/build_fingerprint.py" "$V/tools/cps2_decrypt.py" "$S/tools/"
+cat > "$S/tools/run_replay_mame.sh" <<'EOF'
+#!/bin/sh
+# the F7 stub driver: <set> <replay> <out> — copies the candidate log
+n="$(basename "$2" .rpl)"
+if [ -f "$F7_CAND/$n.log" ]; then cp "$F7_CAND/$n.log" "$3"; else printf '1 deadbeefdeadbeef\nEND 1\n' > "$3"; fi
+EOF
+chmod +x "$S/tools/run_replay_mame.sh"
+ln -s "$V/tests/lib" "$S/tests/lib"; ln -s "$V/tests/replays" "$S/tests/replays"; ln -s "$V/tests/run_suite.sh" "$S/tests/run_suite.sh"
+for d in "$V"/tests/expected/*; do [ "$(basename "$d")" = registry.tsv ] || ln -s "$d" "$S/tests/expected/$(basename "$d")"; done
+printf '[project]\nroot = "."\n[suite]\ndriver = "tools/run_replay_mame.sh"\n' > "$S/bbh.toml"
+: > "$S/tests/expected/registry.tsv"
+if [ "${BBH_FIDELITY_F7:-}" = all ]; then sets7="$(cd "$V/tests/expected" && ls -d */ | tr -d / | grep -v '^vsavj$' | tr '\n' ' ') vsavj"
+else sets7="donovan-m20 huitzil-m13 vsavj"; fi
+n7=0; d7=0; t7=$(date +%s)
+for set7 in $sets7; do
+    [ -d "$V/tests/expected/$set7" ] || continue
+    # a set with ANY dispatchable kind (ls fails when either glob is empty)
+    { ls "$V/tests/expected/$set7"/*.masked >/dev/null 2>&1 || ls "$V/tests/expected/$set7"/*.sha1 >/dev/null 2>&1; } || continue
+    python3 - "$S/rp_$set7" "$set7" <<'EOF'
+import sys, zipfile, os
+d, s = sys.argv[1], sys.argv[2]; os.makedirs(d, exist_ok=True)
+with zipfile.ZipFile(os.path.join(d, "vsavj.zip"), "w") as z: z.writestr("vsavj.03", ("set:" + s).encode()); z.writestr("vsavj.key", b"K")
+EOF
+    printf '%s\t%s\n' "$(python3 -m bbh.fingerprint "$S/rp_$set7" --set vsavj --sha-only)" "$set7" >> "$S/tests/expected/registry.tsv"
+    # candidate logs: the set's own (PASS shapes) for vsavj, else a sibling set's
+    case "$set7" in
+        vsavj) cand7="$V/tests/expected/vsavj/logs" ;;
+        donovan-*) cand7="$V/tests/expected/donovan-m19/logs" ;;
+        huitzil-*) cand7="$V/tests/expected/huitzil-m27/logs" ;;
+        pyron-*) cand7="$V/tests/expected/pyron-m21/logs" ;;
+        *) cand7="$V/tests/expected/donovan-m20/logs" ;;
+    esac
+    [ "$cand7" = "$V/tests/expected/$set7/logs" ] && [ "$set7" != vsavj ] && cand7="$V/tests/expected/vsavj/masked-v2/logs"
+    a7="$(set +e; cd "$S" && ROMDIR="$S" MAME_ROMPATH="$S/rp_$set7" F7_CAND="$cand7" sh tests/run_suite.sh 2>&1; echo "exit=$?")"
+    b7="$(set +e; cd "$S" && ROMDIR="$S" MAME_ROMPATH="$S/rp_$set7" F7_CAND="$cand7" "$BBH_HOME/bin/bbh-run-suite" --config "$S/bbh.toml" 2>&1; echo "exit=$?")"
+    n7=$((n7 + 1))
+    if [ "$a7" != "$b7" ]; then
+        d7=$((d7 + 1)); [ $d7 -le 2 ] && { echo "  DIFF set $set7:"; printf '%s\n' "$a7" > "$T/a7.txt"; printf '%s\n' "$b7" > "$T/b7.txt"; diff "$T/a7.txt" "$T/b7.txt" | head -12 | sed 's/^/        /'; }
+    fi
+done
+lines7="$(printf '%s\n' "$a7" | wc -l | tr -d ' ')"
+[ "$n7" -gt 0 ] && [ "$d7" = 0 ] && ok "F7: $n7 expectation set(s) through both suite runners with the stub driver — every verdict line identical ($lines7 lines in the last, $(( $(date +%s) - t7 )) s; BBH_FIDELITY_F7=all for every set)" || fail "F7: $d7 of $n7 sets differ"
 
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then

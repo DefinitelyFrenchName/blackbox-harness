@@ -73,7 +73,7 @@ reviewed edit of the config.
 | `reconverge` | `60` | config (policy) | identical frames required after the last divergence (the non-propagation proof; intra-mechanism) |
 | `flicker_max_total` | `8` | config (policy) | the cap on a flicker INVENTORY; never applied to a window run |
 
-## `[suite]` — the expectation tree (H2 reads three keys; H3 the rest)
+## `[suite]` — the expectation tree and the suite runner (H2 reads three keys; H3 the rest)
 
 | key | default | origin | meaning |
 |---|---|---|---|
@@ -81,6 +81,34 @@ reviewed edit of the config.
 | `expected_dir` | `"tests/expected"` | config | the expectation tree: `<set>/<name>.{masked,skip,sha1,pending}`, `<set>/mask`, `<basis>/MASK`, `<basis>/logs/<name>.log` |
 | `mask_default` | `"043c-043d,4182-41a2,7f00-8000"` | config | the mask a set without its own `mask` file runs under (offsets from the machine profile's RAM window base); exported to `masked_compare.sh` as `BBH_MASK_DEFAULT` |
 
-Sections `[sweep]`, `[fingerprint]`, `[fields]`, `[gate_header]`,
-`[ref_rot]`, `[provenance]`, `[machine]` arrive with slices H3-H7 and are
-documented here as they land.
+The rest of `[suite]` is the SUITE RUNNER's (`bbh run-suite`, H3):
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `registry` | `"tests/expected/registry.tsv"` | config | `sha1 <TAB> expectation-set <TAB> notes`; `#` comments; rows only at freeze time, as a build decision |
+| `default_set` | `"vsavj"` | config | the set run when the command line names none |
+| `driver` | `"tools/run_replay_mame.sh"` | config | a path from the consumer root, or a bare name = `drivers/<name>.sh` in the harness (`fake`, `mame`, …); `--driver` overrides |
+| `runs_per_replay` | `2` | code (policy) | every replay is run this many times; any difference is NONDETERMINISTIC and a failure |
+| `mask_env` | `"MASK_RANGES"` | code | the variable the driver reads the mask from (drivers/README.md) |
+| `rompath_env` | `"MAME_ROMPATH"` | config | the driver's search-path variable; unset = `input_env`'s value |
+| `input_env` | `"ROMDIR"` | config | the reference-input directory; demanded at the entrance and made absolute |
+| `hermetic_unset` | the lineage's eight (`POKES DUMPS SNAP_FRAMES TAIL_FRAMES VIDEO_OUT INPUT_OUT INPUT_INJECT_TEST NO_INPUT_CHECK`) | code | scrubbed from the environment before any driver runs, so nothing from the caller's shell reaches a frozen log |
+| `hash_cmd` | `"shasum"` | config | prints `<hex> <file>`; the `.sha1` kind's hash (`sha1sum` on Linux) |
+
+## `[fingerprint]` — build identity → expectation set (H3)
+
+Read by `lib/py/bbh/fingerprint.py` through `--config` or `BBH_CONFIG`.
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `kind` | `"zip-members"` | config | `zip-members` (the set is `<set>.zip` on a `;` search path), `file-sha1` (one file), `command` (two commands print the keys) |
+| `program_member_regex` | `\.(0[3-9]\|10\|4[1-4])[a-ln-z]?$` | config | which zip members are the PROGRAM; group 1 is the member's ORDER, an integer — the program key hashes them in that order |
+| `parent_sets` | `["vsav"]` | config | set names whose images `--full` folds in along the search path (a clone set's parent) |
+| `region_rules` | the lineage's five | config | `[[regex, region], …]` for `--full`'s per-region breakdown, first match wins; the pseudo-regex `@program` means "matches the program regex" |
+| `region_default` | `"gfx/qsnd"` | config | the region of a member no rule names |
+| `file_pattern` | `"{set}.bin"` | config | kind `file-sha1`: the image's file name |
+| `program_command`, `wholeset_command` | `""` | config | kind `command`: shell commands printing the keys, `{rompath}` and `{set}` substituted |
+
+Sections `[sweep]`, `[fields]`, `[gate_header]`, `[ref_rot]`,
+`[provenance]`, `[machine]` arrive with slices H4-H7 and are documented
+here as they land.
