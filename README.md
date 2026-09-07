@@ -26,7 +26,7 @@ survived is here; what did not stayed there.
 | **the `.rpl` grammar** (`lib/py/bbh/rpl.py`, `bbh rpl`) | the replay parser, one copy on the python side (the Lua twin comes with H6) | H3 |
 | **the sweep runner** (`bbh run-sweep`) | every instrument-tier gate from the sweep registry, in lanes; the prereq lane first and serial, a red there stops the run; scope and cadence columns, `--freeze` naming what it dropped; `%PLACEHOLDER%` args and `VAR=value` environment; per-row timeouts; `--jobs` with per-slot scratch; `--resume`; the banner that IDENTIFIES the builds (fingerprinted) and the instruments; the anti-orphan check both ways | H4 |
 | **expectation and gate hygiene** (`bbh provenance`, `bbh header-defaults`, `bbh ref-rot`, `bbh gate-index`; `lib/sh/shadow_tools.sh`, `lib/sh/accounting.sh`) | every frozen expectation file has a row in a register naming a CLOSED evidence class (a red gate is a question, and its first question is which side rests on a measurement); a gate's header names the default its CODE uses; a hard-coded path default that exists but is too old is ROTTED (absent is not rotted; currency is reported, never failed); the gate index is GENERATED from the headers and a family TSV, complete both ways; a perturbation control edits a shadow copy, never the tracked tool; a battery cannot print GREEN while a gate self-skipped — the one header parser (`gate_header.py`) under all of it | H5 |
-| the MAME Lua layer with machine profiles, the MAME / FBNeo drivers, recordings | H6 |
+| **the MAME Lua layer under a MACHINE PROFILE, the real drivers, the recording corpus** (`lua/mame/`, `drivers/mame.sh`, `mame_guarded.sh`, `fbneo.sh`, `bbh inp-play`, `bbh inp-corpus`, `docs/lua.md`) | the replay engine (per-frame RAM hashes, masks as a basis, dumps, pokes, snapshots, a video log, the always-on input-integrity assertion with its must-fire), the crash guard (`-debug` breakpoints on the vectors, or cheap-mode PC classification), the taps and the recording guard — every board literal (CPU, space, RAM window, port map, exception frame, exception store) in ONE Lua table per board (`profiles/cps2.lua`, `cps2w.lua`, `TEMPLATE.lua`), the grammar in ONE module whose parse equals `rpl.py`'s; headless, sandboxed, input-isolated drivers that REFUSE what they cannot honour; recordings replayed under the guard at every freeze, a dead playback never read as clean | H6 |
 | **mapped-field comparison at anchors, and dump completeness** (`bbh compare-fields`, `bbh check-dumps`) | the dual-implementation protocol: two implementations traverse identical states on different frame indices, so the comparable thing is the MAPPED state (a fields TSV) at the debounced rising edge of a predicate on the dumped RAM, at the anchor and at offsets after it — `--exact` for same-implementation runs; the predicate, the bases and the debounce are the consumer's `[fields]`; and because the comparator GLOBS, the producer asserts the dump set is complete first (a hole silently moves an anchor) | H7 |
 
 Every piece ships with its ground truth under `selftest/` — ROM-free, no
@@ -76,16 +76,19 @@ changes, grep for the claim.
 ## Layout
 
 ```
-bin/        bbh (dispatcher), bbh-run-static, bbh-run-suite, bbh-run-sweep, bbh-classify, bbh-doctor
-lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh shadow_tools.sh accounting.sh
+bin/        bbh (dispatcher), bbh-run-static, bbh-run-suite, bbh-run-sweep, bbh-classify, bbh-doctor, bbh-inp-play, bbh-inp-corpus
+lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh shadow_tools.sh accounting.sh mame_sandbox.sh
+lua/mame/   profile.lua rpl_parse.lua rpl_dump.lua replay.lua replay_guard.lua inp_guard.lua snapshot_frames.lua trace_writes.lua tap_writes.lua read_tap.lua
+            profiles/ (cps2.lua cps2w.lua TEMPLATE.lua) — the MACHINE PROFILES (docs/lua.md)
 lib/py/bbh/ config.py toml_subset.py tier.py demand_after_trap.py thresholds.py logfmt.py fingerprint.py rpl.py
             compare_flicker.py compare_window.py compare_composite.py check_diverge.py describe_masked_shape.py
             gate_header.py gen_gate_index.py header_defaults.py ref_rot.py provenance.py compare_fields.py check_dumps.py
-drivers/    README.md (THE DRIVER CONTRACT), fake.sh
-selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks F1/F3/F4/F5/F6/F7/F9/F10)
+drivers/    README.md (THE DRIVER CONTRACT), fake.sh, mame.sh, mame_guarded.sh, fbneo.sh
+selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fidelity checks F1/F3/F4/F5/F6/F7/F9/F10,
+            and test_fidelity_mame.sh, F8 on the real emulators — opt-in, BBH_MAME_FIDELITY=1)
 example/    a complete tiny consumer: fakesys/ (the fake machine + ROM generator), roms/, replays/, expected/, tests/
             (+ consumers/ for real ones); tests/fields.tsv + g_fields.sh: the dual-implementation protocol on the fake
-docs/       gate_contract.md config.md hygiene.md method/oracle_classes.md
+docs/       gate_contract.md config.md hygiene.md lua.md method/oracle_classes.md
 ```
 
 License: GPL-3.0 (the lineage's).

@@ -16,11 +16,17 @@ vocabulary, so it can lint a replay and drive a fake machine. Slice H6 adds
 that the two agree on every replay when a standalone `lua` is present.
 
     python3 -m bbh.rpl <replay.rpl> [--sides p1:1:UDLR123456 ...]
+    python3 -m bbh.rpl dump <replay.rpl>... [--sides ...]
 
-prints `ok: <n> lines, last frame <m>, <k> held frames` or the error with
-its line number (exit 1). Error texts follow the lineage's replay.lua
-assertions so a replay rejected by one side is rejected by the other for
-the same reason.
+The first prints `ok: <n> lines, last frame <m>, <k> held frames` or the
+error with its line number (exit 1). `dump` prints the CANONICAL parse of
+each replay (`== <path>`, one `<frame> who=tok …` line per held frame in
+file order, `last <n>`; or `ERROR <message>`) — the text
+lua/mame/rpl_dump.lua prints through rpl_parse.lua, so the two grammars
+can be diffed (selftest/test_rpl_lua.sh under a standalone lua; fidelity F8
+under MAME). Error texts follow the lineage's replay.lua assertions so a
+replay rejected by one side is rejected by the other for the same reason
+(a missing side reads `'nil'`, as Lua's tostring prints it).
 """
 import re
 import sys
@@ -72,7 +78,7 @@ def parse(path, sides=None):
                 s = re.match(r"^([A-Za-z]+\d?)=(\S+)$", spec)
                 who = s.group(1) if s else None
                 if who not in sides:
-                    raise RplError(f"{path}:{lineno}: unknown side '{who}'")
+                    raise RplError(f"{path}:{lineno}: unknown side '{who if who is not None else 'nil'}'")
                 width, vocab = sides[who]
                 for t in split_tokens(width, s.group(2)):
                     if t not in vocab:
@@ -93,8 +99,31 @@ def _sides_arg(specs):
     return sides
 
 
+def dump(held, last):
+    """The canonical text of a parse — byte-identical to rpl_parse.lua's dump()."""
+    out = []
+    for fr in sorted(held):
+        out.append(" ".join([str(fr)] + [f"{who}={tok}" for who, tok in held[fr]]))
+    out.append(f"last {last}")
+    return "\n".join(out) + "\n"
+
+
 def main(argv):
     import argparse
+    if argv and argv[0] == "dump":
+        ap = argparse.ArgumentParser(prog="bbh rpl dump")
+        ap.add_argument("replays", nargs="+")
+        ap.add_argument("--sides", nargs="*", default=None)
+        a = ap.parse_args(argv[1:])
+        sides = _sides_arg(a.sides) if a.sides else None
+        for path in a.replays:
+            sys.stdout.write(f"== {path}\n")
+            try:
+                held, last = parse(path, sides)
+                sys.stdout.write(dump(held, last))
+            except (RplError, OSError) as e:
+                sys.stdout.write(f"ERROR {e}\n")
+        return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("replay")
     ap.add_argument("--sides", nargs="*", default=None,

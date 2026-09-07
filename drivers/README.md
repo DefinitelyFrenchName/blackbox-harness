@@ -85,10 +85,18 @@ interprets them. The guarded grammar adds `CRASH <frame> <vector> PC <pc>`,
 | driver | machine | search path | notes |
 |---|---|---|---|
 | `fake.sh` | `example/fakesys/fakesys.py` | `FAKE_ROMPATH` (or `FAKE_ROOT`) | honours the whole replay family; refuses the guard family; `FAKE_BUILD`, `FAKE_NONDET`, `FAKE_CRASH_AT` are its own knobs (H3) |
-| `mame.sh` | MAME + `lua/mame/replay.lua` under a machine profile | `MAME_ROMPATH` | H6 |
-| `mame_guarded.sh` | MAME + `replay_guard.lua` | `MAME_ROMPATH` | H6; refuses `MASK_RANGES` |
-| `fbneo.sh` | the patched FBNeo frontend | `FBNEO_ROMPATH` | H6; maps `DUMPS` to `-hdump`, refuses `MASK_RANGES` |
+| `mame.sh` | MAME + `lua/mame/replay.lua` under a MACHINE PROFILE (`BBH_PROFILE`, required: a name under `lua/mame/profiles/` or a path) | `MAME_ROMPATH` (falls back to `ROMDIR`); `MAME_BIN` names the binary | honours the whole replay family; refuses the guard family. Headless and sandboxed (`lib/sh/mame_sandbox.sh`): every host input provider off, `SDL_VIDEODRIVER=dummy`, a fresh cfg/nvram/diff/snap/sta/home per run (H6) |
+| `mame_guarded.sh` | MAME + `replay_guard.lua` (crash detection: `-debug` breakpoints on the exception vectors, or cheap-mode PC classification with `GUARD_DEBUG=0`) | as `mame.sh` | honours the guard family; refuses `MASK_RANGES`, `NO_INPUT_CHECK`, `VIDEO_OUT`, `INPUT_OUT`; exit 2 when it trips (H6) |
+| `fbneo.sh` | a patched FBNeo frontend carrying the replay harness (`-hinput/-hout/-hdump`, `FBNEO_HPOKE`, `FBNEO_HVIDEO`) — a SECOND implementation of the same machine | `FBNEO_ROMPATH` (first wins; `ROMDIR` always last), built as a symlink overlay because the frontend has no `-rompath`; `FBNEO_BIN` required | maps `DUMPS` to `-hdump` (files `<out>.dump_<f>_<a>.bin`), `POKES` to `FBNEO_HPOKE`, `VIDEO_OUT` to `FBNEO_HVIDEO`; refuses `MASK_RANGES`, `SNAP_FRAMES`, `INPUT_OUT`, `INPUT_INJECT_TEST`, `NO_INPUT_CHECK`, a `TAIL_FRAMES` other than the frontend's 120, and the guard family (H6) |
+
+The MAME drivers' Lua side, the machine profile and the other instruments
+(taps, snapshots, the recording guard) are `docs/lua.md`.
 
 Ground truth: `selftest/test_driver_contract.sh` exercises every row of
 §2 and §4 against `fake.sh`, including the refusal and the must-fire
-control of the integrity assertion.
+control of the integrity assertion; `selftest/test_mame_drivers.sh` the sh
+half of the three real drivers against a STUB emulator (every refusal,
+every path made absolute, every isolation flag, the stale-artifact rule,
+the exit codes); fidelity F8 (`selftest/test_fidelity_mame.sh`, opt-in)
+the Lua half on the real emulators — the lineage's driver and `mame.sh`
+produce byte-identical logs.

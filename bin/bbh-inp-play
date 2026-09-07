@@ -1,0 +1,94 @@
+#!/bin/sh
+# bbh-inp-play — play a MAME .inp RECORDING back HEADLESS under
+# lua/mame/inp_guard.lua (cheap mode: no -debug, faithful playback) and
+# capture the machine's own exception record the moment a crash fires.
+# Lineage: VampireSaved tools/run_inp_guarded.sh — the natural-path crash
+# capture instrument ("a field report is a RECORDING before it is a theory").
+#
+# Usage: bbh inp-play --set <set> --rompath "<build>;<ref>" --inp <dir> [--out <dir>] [--profile <board>]
+#   <dir>          a recording: <dir>/<name>.inp + <dir>/nvram/ (the fresh
+#                  nvram the session started from), name = basename(<dir>)
+#   --rompath      the rompath chain, first wins (the build under test first)
+#   --out          output dir (default: <dir>/../out_<name>); playback runs
+#                  against a throwaway COPY of the recorded nvram, never the
+#                  canonical one
+#   --profile      BBH_PROFILE (a name or path); the env wins when set
+#   env MAME_BIN, ARM_FRAME, MAX_FRAMES, STOP_AFTER, SELFTEST_FRAME, WATCH,
+#       WATCH_KEEP, INP_DEBUG, INP_RUN_PAST_END   pass through
+# Output: <out>/inp_guard.log (+ crash_<frame>_<lo>.bin dumps, mame.out).
+#
+# The run stops at the END OF THE RECORDING (-exit_after_playback), so
+# nothing past the recorded input is ever measured. MAME gives Lua no
+# machine-stop hook, so the terminator is written here: PLAYBACK <n> is
+# MAME's own authoritative count of recorded frames, END <n> the last frame.
+# ONLY a run MAME itself reports as a playback of > 0 frames gets one: an
+# absent END must stay absent so a corpus gate's dead-run check can still
+# fail — "0" means MAME loaded no recorded frames at all (a bad .inp, a
+# missing member, a relative search path) and a terminated dead run greps as
+# a green "END 0" asserting nothing.
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/mame_sandbox.sh"
+SET=""; RP=""; D=""; OUT=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --set) shift; SET="${1:?--set needs a set name}" ;;
+    --rompath) shift; RP="${1:?--rompath needs a chain}" ;;
+    --inp) shift; D="${1:?--inp needs a recording dir}" ;;
+    --out) shift; OUT="${1:?--out needs a dir}" ;;
+    --profile) shift; [ -n "${BBH_PROFILE:-}" ] || BBH_PROFILE="${1:?--profile needs a name}" ;;
+    -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+    *) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
+    esac
+    shift
+done
+[ -n "$SET" ] && [ -n "$RP" ] && [ -n "$D" ] || { echo "usage: bbh inp-play --set <set> --rompath <chain> --inp <dir> [--out <dir>]" >&2; exit 2; }
+export BBH_PROFILE
+bbh_mame_profile_resolve || exit 1
+D="$(cd "$D" 2>/dev/null && pwd)" || { echo "no recording dir: $D" >&2; exit 1; }
+NAME="$(basename "$D")"
+[ -f "$D/$NAME.inp" ] || { echo "no $D/$NAME.inp" >&2; exit 1; }
+[ -d "$D/nvram" ] || { echo "no $D/nvram (the recording's fresh start state)" >&2; exit 1; }
+# EVERY component of the chain ABSOLUTE: this script cds into the output dir
+# before invoking MAME, so a RELATIVE component resolves against it, the set
+# is not found, and playback silently becomes a ZERO-FRAME run (paid for in
+# the lineage, 14z-126b).
+_abs=""; _rest="$RP;"
+while [ -n "$_rest" ]; do
+    _d="${_rest%%;*}"; _rest="${_rest#*;}"
+    [ -n "$_d" ] || continue
+    case "$_d" in /*) ;; *) _d="$(CDPATH= cd "$_d" 2>/dev/null && pwd)" || { echo "rompath component does not exist: $_d" >&2; exit 2; } ;; esac
+    _abs="${_abs:+$_abs;}$_d"
+done
+RP="$_abs"
+[ -n "$OUT" ] || OUT="$(dirname "$D")/out_$NAME"
+mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
+SB="$(mktemp -d)"; trap 'rm -rf "$SB"' EXIT
+cp -R "$D/nvram" "$SB/nvram"
+mkdir -p "$SB/cfg" "$SB/diff" "$SB/snap" "$SB/sta"
+echo "== playback $D/$NAME.inp on $RP -> $OUT/inp_guard.log"
+: "${SDL_VIDEODRIVER:=dummy}"; export SDL_VIDEODRIVER
+cd "$OUT"
+EXITFLAG="-exit_after_playback"
+[ -n "${INP_RUN_PAST_END:-}" ] && EXITFLAG=""
+DBG=""
+if [ -n "${INP_DEBUG:-}" ]; then
+    # debugger mode: -debug halts at the first instruction; the debugscript
+    # resumes it. Timeslicing differs from cheap mode — compare crash frames
+    # before trusting a trace.
+    printf 'go\n' > "$SB/go.dbg"; DBG="-debug -debugger none -debugscript $SB/go.dbg"
+fi
+# shellcheck disable=SC2086
+CHECKSUM_OUT="$OUT/inp_guard.log" "${MAME_BIN:-mame}" "$SET" -rompath "$RP" $DBG \
+    -playback "$NAME.inp" -input_directory "$D" $EXITFLAG -nvram_directory "$SB/nvram" \
+    -keyboardprovider none -mouseprovider none -joystickprovider none -lightgunprovider none \
+    -video none -sound none -nothrottle -skip_gameinfo \
+    -cfg_directory "$SB/cfg" -diff_directory "$SB/diff" -snapshot_directory "$SB/snap" \
+    -state_directory "$SB/sta" -homepath "$SB" \
+    -autoboot_script "$BBH_HOME/lua/mame/inp_guard.lua" > "$OUT/mame.out" 2>&1 || true
+PB="$(grep -o 'Total playback frames: [0-9]*' "$OUT/mame.out" | tail -1 | awk '{print $4}')"
+if [ -n "$PB" ] && [ "$PB" -gt 0 ] 2>/dev/null; then
+    echo "PLAYBACK $PB" >> "$OUT/inp_guard.log"
+    grep -q '^END' "$OUT/inp_guard.log" || echo "END $PB" >> "$OUT/inp_guard.log"
+fi
+grep -E "^(CRASH|REGS|STACK|DUMP|SELFTEST|TRACE|W |END)" "$OUT/inp_guard.log" || { echo "NO GUARD OUTPUT — see $OUT/mame.out"; tail -5 "$OUT/mame.out"; exit 1; }

@@ -21,15 +21,18 @@
 #   bbh provenance [--config bbh.toml] [--page FILE]         every frozen expectation says where its numbers came from (H5)
 #   bbh compare-fields <dir_a> <dir_b> --fields <tsv> [--exact|--follow …]   mapped fields at sync anchors (lib/py/bbh/compare_fields.py; H7)
 #   bbh check-dumps <dir> --first F --last L | --contiguous              a dump set is complete (lib/py/bbh/check_dumps.py; H7)
+#   bbh inp-play --set S --rompath "b;r" --inp <dir> [--out d]   play a MAME recording under the crash guard (H6)
+#   bbh inp-corpus [--config bbh.toml] [--build d] [--only n]    every tracked recording, no exception (H6)
 #   bbh doctor [--config bbh.toml]  is this host able to run the harness?
 #   bbh selftest                  the harness's own gate chain (selftest/run.sh)
 #
 # Every subcommand finds the harness from THIS file's location, so the
 # harness can live anywhere; the consumer is found from --config / $BBH_CONFIG
-# / ./bbh.toml. Slice H6 adds the MAME drivers.
+# / ./bbh.toml. The MAME drivers (drivers/mame.sh, mame_guarded.sh, fbneo.sh)
+# and the Lua layer under lua/mame/ are run by the suite, not dispatched here.
 set -eu
 BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
-[ $# -ge 1 ] || { sed -n '2,26p' "$0"; exit 2; }
+[ $# -ge 1 ] || { sed -n '2,28p' "$0"; exit 2; }
 cmd="$1"; shift
 PYTHONPATH="$BBH_HOME/lib/py${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH
 case "$cmd" in
@@ -53,8 +56,10 @@ ref-rot)           exec python3 -m bbh.ref_rot "$@" ;;
 provenance)        exec python3 -m bbh.provenance "$@" ;;
 compare-fields)    exec python3 -m bbh.compare_fields "$@" ;;
 check-dumps)       exec python3 -m bbh.check_dumps "$@" ;;
+inp-play)          exec "$BBH_HOME/bin/bbh-inp-play" "$@" ;;
+inp-corpus)        exec "$BBH_HOME/bin/bbh-inp-corpus" "$@" ;;
 doctor)            exec "$BBH_HOME/bin/bbh-doctor" "$@" ;;
 selftest)          exec "$BBH_HOME/selftest/run.sh" "$@" ;;
--h|--help|help)    sed -n '2,26p' "$0"; exit 0 ;;
+-h|--help|help)    sed -n '2,28p' "$0"; exit 0 ;;
 *) echo "bbh: unknown command '$cmd' (try bbh help)" >&2; exit 2 ;;
 esac

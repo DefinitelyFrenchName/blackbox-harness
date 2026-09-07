@@ -1,0 +1,125 @@
+#!/bin/sh
+# bbh-inp-corpus — EVERY tracked hand-played recording plays through with
+# NO CPU exception on the build under test. Lineage: VampireSaved
+# tests/test_inp_corpus.sh (maintainer-ruled law there: "FIELD REPORTS ARE
+# RECORDINGS"), its verdict lines kept character for character.
+#
+# Usage: <INPUT_ENV>=... bbh inp-corpus [--config bbh.toml] [--build <dir>] [--only <name>]
+#   env BUILD          the build dir (the lineage's variable; --build wins)
+#   env ONLY           one recording (--only wins)
+#   env MAME_BIN       the emulator (default: [inp].mame_bin_default)
+#   env MAX_FRAMES     playback cap (default: [inp].max_frames)
+#
+# THE RULES the corpus carries (the lineage's, verbatim in spirit):
+#   * every reproducible field crash is captured as a recording BEFORE any
+#     theory — a win-fast rig never gives a CPU opponent time to reach the
+#     script that crashes;
+#   * every recording is tracked under <corpus_dir>/<name>/ with a one-line
+#     NOTE saying what it exercises, NAMED <what>-<freeze>-NN after the
+#     freeze it was PLAYED on, never the session;
+#   * a recording that still crashes on purpose (a captured-but-unfixed
+#     defect) is declared by a DEFECT file naming the expected
+#     "vec<n> PC <pc6>" — the gate then asserts that exact crash instead (so
+#     the capture cannot rot) and lists it loudly as OPEN;
+#   * a run that played ZERO frames executes no code, so it can raise no
+#     exception and would sail through the "no CRASH" test — the liveness
+#     predicate rejects it, and its own controls prove it can (a gate whose
+#     only liveness test is "some END line exists" is one bug away from
+#     testing nothing).
+# Config: [inp] corpus_dir, set, build, rompath_suffix, profile,
+# mame_bin_default, max_frames, stop_after (docs/config.md).
+set -eu
+BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/config.sh"
+CONFIG=""; BUILD_ARG=""; ONLY_ARG=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --config) shift; CONFIG="${1:?--config needs a file}" ;;
+    --build) shift; BUILD_ARG="${1:?--build needs a dir}" ;;
+    --only) shift; ONLY_ARG="${1:?--only needs a name}" ;;
+    -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+    *) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
+    esac
+    shift
+done
+bbh_config_init "$CONFIG"
+CORPUS="$(bbh_cfg inp.corpus_dir)"
+SET="$(bbh_cfg inp.set)"
+BUILD="${BUILD_ARG:-${BUILD:-$(bbh_cfg inp.build)}}"
+SUFFIX="$(bbh_cfg inp.rompath_suffix "")"
+INPUT_ENV="$(bbh_cfg suite.input_env)"
+PROFILE="$(bbh_cfg inp.profile)"
+MAME_DEFAULT="$(bbh_cfg inp.mame_bin_default "")"
+MAXF="${MAX_FRAMES:-$(bbh_cfg inp.max_frames)}"
+STOPA="$(bbh_cfg inp.stop_after)"
+ONLY="${ONLY_ARG:-${ONLY:-}}"
+[ -n "${BBH_PROFILE:-}" ] || { BBH_PROFILE="$PROFILE"; export BBH_PROFILE; }
+
+cd "$BBH_ROOT"
+eval "INPUT=\${$INPUT_ENV:-}"
+[ -n "$INPUT" ] || { echo "FAIL: set $INPUT_ENV"; exit 1; }
+if [ -d "$INPUT" ]; then INPUT="$(cd "$INPUT" && pwd)"; fi
+RP="$BUILD$SUFFIX"
+[ -f "$RP/$SET.zip" ] || { echo "FAIL: no $SET build at $BUILD"; exit 1; }
+if [ -z "${MAME_BIN:-}" ]; then
+    MAME_BIN="$(printf '%s' "$MAME_DEFAULT" | sed "s|\$HOME|$HOME|g; s|\${HOME}|$HOME|g")"
+fi
+export MAME_BIN
+[ -n "$MAME_BIN" ] || { echo "FAIL: set MAME_BIN (or [inp].mame_bin_default)"; exit 1; }
+W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
+
+# LIVENESS: a real check rather than a formality — see the header.
+live_run() {
+    _e="$(grep -m1 '^END' "$1" | awk '{print $2}')"
+    _p="$(grep -m1 '^PLAYBACK' "$1" | awk '{print $2}')"
+    [ -n "$_e" ] || return 1
+    [ "$_e" -gt 0 ] 2>/dev/null || return 1
+    [ -z "$_p" ] || [ "$_p" -gt 0 ] 2>/dev/null || return 1
+    return 0
+}
+live_why() {
+    grep -q '^END' "$1" || { echo "no END line"; return; }
+    echo "END $(grep -m1 '^END' "$1" | awk '{print $2}')/PLAYBACK $(grep -m1 '^PLAYBACK' "$1" | awk '{print $2}') — zero frames played"
+}
+
+n=0; fail=0; open=0
+for d in "$CORPUS"/*/; do
+    [ -d "$d" ] || continue
+    name="$(basename "$d")"
+    [ -n "$ONLY" ] && [ "$name" != "$ONLY" ] && continue
+    [ -f "$d/$name.inp" ] || { echo "  FAIL: $d has no $name.inp"; fail=1; continue; }
+    n=$((n+1))
+    STOP_AFTER="$STOPA" MAX_FRAMES="$MAXF" \
+        "$BBH_HOME/bin/bbh-inp-play" --set "$SET" --rompath "$RP;$INPUT" --inp "$d" --out "$W/out_$name" \
+        > "$W/run_$name.txt" 2>&1 || true
+    CR="$(grep -m1 '^CRASH' "$W/run_$name.txt" || true)"
+    live_run "$W/run_$name.txt" || { echo "  FAIL: $name — dead run ($(live_why "$W/run_$name.txt"))"; tail -3 "$W/run_$name.txt"; fail=1; continue; }
+    if [ -f "$d/DEFECT" ]; then
+        want="$(cat "$d/DEFECT")"; open=$((open+1))
+        echo "$CR" | grep -q "$want" \
+            && echo "  OPEN (as frozen): $name — $CR" \
+            || { echo "  FAIL: $name declared DEFECT '$want' but got '${CR:-none}' — the capture rotted or the defect moved"; fail=1; }
+    elif [ -n "$CR" ]; then
+        echo "  FAIL: $name — $CR"; echo "        $(cat "$d/NOTE" 2>/dev/null || echo 'no NOTE')"; fail=1
+    else
+        echo "  ok: $name plays through clean ($(cat "$d/NOTE" 2>/dev/null || echo 'no NOTE'))"
+    fi
+done
+# ---- CONTROL: the liveness predicate must actually reject a dead run -------
+# Verdict logic is itself tested: without this, the check above could rot
+# back into "any END line will do" and nothing would notice.
+CW="$W/ctl"; mkdir -p "$CW"
+printf 'PLAYBACK 0\nEND 0\n'       > "$CW/dead.txt"
+printf 'V 1 x\nEND 0\n'            > "$CW/dead_noplayback.txt"
+printf 'PLAYBACK 5000\nEND 5000\n' > "$CW/live.txt"
+printf 'V 1 x\n'                    > "$CW/noend.txt"
+cerr=0
+live_run "$CW/dead.txt"            && { echo "  FAIL control: a 0-frame run was accepted as live"; cerr=1; }
+live_run "$CW/dead_noplayback.txt" && { echo "  FAIL control: END 0 was accepted as live"; cerr=1; }
+live_run "$CW/noend.txt"           && { echo "  FAIL control: a run with no END was accepted as live"; cerr=1; }
+live_run "$CW/live.txt"            || { echo "  FAIL control: a real run was rejected as dead"; cerr=1; }
+[ "$cerr" -eq 0 ] && echo "  ok liveness controls fired (3 dead rejected, 1 live accepted)" || fail=1
+
+[ "$n" -gt 0 ] || { echo "FAIL: no recordings under $CORPUS/"; exit 1; }
+[ "$fail" -eq 0 ] && { echo "PASS: $n recording(s) replayed on $BUILD, no exception ($open declared-open)"; exit 0; }
+echo "FAIL: inp corpus"; exit 1

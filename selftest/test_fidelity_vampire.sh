@@ -33,6 +33,8 @@
 #       directories shaped like the lineage's (its addresses, its fields
 #       table, a driver-prefixed copy): every mode and every failure, stdout
 #       + stderr + exit diffed.
+#   F8  lives in selftest/test_fidelity_mame.sh (opt-in, BBH_MAME_FIDELITY=1: the
+#       Lua layer, the drivers and the recording tools on the real emulators).
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.

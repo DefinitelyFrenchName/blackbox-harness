@@ -232,5 +232,27 @@ the lineage; here they are the consumer's.
 | `settle` | `120` | config (policy) | `settled` fields are compared at offsets ≥ this (`--settle` overrides) |
 | `integrity_hint` | the lineage's two lines | config | printed under `DUMP INTEGRITY FAILED` |
 
-Section `[machine]` arrives with slice H6 and is documented here when it
-lands.
+## `[machine]` — the machine profile the MAME drivers run under (H6)
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `profile` | `"cps2"` | config | a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; the drivers REFUSE to run without it. The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
+
+## `[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`, H6)
+
+A RECORDING is `<corpus_dir>/<name>/{<name>.inp, nvram/, NOTE[, DEFECT]}`:
+the emulator's own input recording, the fresh nvram it started from, a
+one-line note of what it exercises, and — for a captured-but-unfixed crash
+— the expected `vec<n> PC <pc6>` the gate asserts instead (so the capture
+cannot rot).
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `corpus_dir` | `"tests/inp"` | config | where the recordings live |
+| `set` | `"vsavjw"` | config | the set the recordings were played on; `<build><rompath_suffix>/<set>.zip` must exist |
+| `build` | `"build/m3b_merged23"` | config | the build dir under test (env `BUILD` / `--build` override) |
+| `rompath_suffix` | `"/rompath"` | config | + the build dir = the first component of the search path (the reference input, `[suite].input_env`, is the second) |
+| `profile` | `"cps2w"` | config | the machine profile for the playback guard (`BBH_PROFILE` in the env wins) |
+| `mame_bin_default` | `"$HOME/.cache/vampire-saved/mame/cps2"` | config | `MAME_BIN` when the caller set none (`$HOME` substituted) |
+| `max_frames` | `6000` | config (policy) | the playback cap (`MAX_FRAMES` overrides) |
+| `stop_after` | `5` | config (policy) | frames to keep running after the first crash |

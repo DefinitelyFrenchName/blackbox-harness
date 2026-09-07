@@ -33,7 +33,7 @@ bad "100 p1=Z"      "unknown token 'Z' for p1"
 bad "100 sys=S"     "unknown token 'S' for sys"
 bad "100 sys=S1C"   "unknown token 'C' for sys"
 bad "100"           "expected '<frame>\[-<end>\] who=tokens'"
-bad "100 p1"        "unknown side 'None'"
+bad "100 p1"        "unknown side 'nil'"
 
 echo "== 3. semantics =="
 printf '10-12 p1=U1 p2=D\n11 sys=S1C1\n20 wait\n' > "$T/s.rpl"

@@ -24,7 +24,12 @@ if command -v timeout >/dev/null 2>&1; then ok "timeout(1): $(command -v timeout
 elif command -v gtimeout >/dev/null 2>&1; then ok "gtimeout(1): $(command -v gtimeout) (the sweep runner uses it)"
 else note "no timeout(1): the sweep runner (H4) will run gates uncapped"; fi
 command -v git >/dev/null 2>&1 && ok "git: $(git --version | head -1)" || note "no git: the working-tree snapshot is skipped"
-command -v lua >/dev/null 2>&1 && ok "lua: $(command -v lua)" || note "no standalone lua: the .rpl parser equality selftest (H6) SKIPs"
+_lua=""; for _l in lua lua5.4 lua5.3 luajit; do command -v "$_l" >/dev/null 2>&1 && { _lua="$_l"; break; }; done
+[ -n "$_lua" ] && ok "lua: $(command -v "$_lua") (the .rpl parser equality selftest runs)" || note "no standalone lua (lua/lua5.4/lua5.3/luajit): selftest/test_rpl_lua.sh SKIPs; the parse is still proved under MAME by fidelity F8"
+if [ -n "${MAME_BIN:-}" ]; then [ -x "$MAME_BIN" ] && ok "MAME_BIN: $MAME_BIN" || bad "MAME_BIN is not executable: $MAME_BIN"
+elif command -v mame >/dev/null 2>&1; then note "MAME_BIN unset: drivers/mame.sh will run $(command -v mame) — a consumer with a pinned build must set it"
+else note "no MAME (MAME_BIN unset, none on PATH): the MAME drivers cannot run here"; fi
+[ -n "${FBNEO_BIN:-}" ] && { [ -x "$FBNEO_BIN" ] && ok "FBNEO_BIN: $FBNEO_BIN" || bad "FBNEO_BIN is not executable: $FBNEO_BIN"; } || note "FBNEO_BIN unset: drivers/fbneo.sh needs it"
 sh -c ': "${BBH_DOCTOR_PROBE:?probe}"' >/dev/null 2>&1 && bad "sh accepted an unset demand" || ok "sh refuses an unset \${VAR:?} demand (exit $?)"
 
 CONFIG="${2:-}"

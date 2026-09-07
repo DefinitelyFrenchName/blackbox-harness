@@ -69,3 +69,19 @@ region_default = "gfx/qsnd"
 
 # [sweep] — the sweep runner's section takes the DEFAULTS, which are this
 # project's literals (bbh.toml.example lists them; docs/config.md [sweep]).
+
+# --- slice H6: the machine profile and the recording corpus (the DEFAULTS
+# are this project's literals; stated here so the fidelity gate's config is
+# explicit) ---
+[machine]
+profile = "cps2"
+
+[inp]
+corpus_dir = "tests/inp"
+set = "vsavjw"
+build = "build/m3b_merged23"
+rompath_suffix = "/rompath"
+profile = "cps2w"
+mame_bin_default = "$HOME/.cache/vampire-saved/mame/cps2"
+max_frames = 6000
+stop_after = 5

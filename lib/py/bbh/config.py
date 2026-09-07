@@ -190,6 +190,21 @@ DEFAULTS = {
         "integrity_hint": ["A glob-based comparison would have silently used a DIFFERENT",
                            "frame set. Do not compare this run — see docs/platform/gotchas.md."],   # under a DUMP INTEGRITY FAILED
     },
+    "machine": {
+        # H6 — the MAME Lua layer: which machine profile the drivers run under
+        "profile": "cps2",                            # a name under lua/mame/profiles/ or a path; BBH_PROFILE in the env wins
+    },
+    "inp": {
+        # H6 — the recording corpus (bbh inp-corpus / bbh inp-play); the lineage's literals
+        "corpus_dir": "tests/inp",                    # <corpus_dir>/<name>/{<name>.inp, nvram/, NOTE, DEFECT?}
+        "set": "vsavjw",                              # the set the recordings were played on
+        "build": "build/m3b_merged23",                # the build dir under test (env BUILD / --build override)
+        "rompath_suffix": "/rompath",                 # + the build dir = the search path's first component
+        "profile": "cps2w",                           # the machine profile for the playback guard
+        "mame_bin_default": "$HOME/.cache/vampire-saved/mame/cps2",   # MAME_BIN when the caller set none
+        "max_frames": 6000,                           # MAX_FRAMES: the playback cap
+        "stop_after": 5,                              # STOP_AFTER: frames after the first crash
+    },
     "classify": {
         "skip_regex": r"^ *SKIP",
         "shell_error_regex": r"\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: ",
