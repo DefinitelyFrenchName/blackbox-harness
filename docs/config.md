@@ -1,6 +1,6 @@
 # The config — `bbh.toml`, every key, its default, and the bin it came from
 
-One file per consumer. Paths are relative to the config file's directory,
+**[BBH-62]** One file per consumer. Paths are relative to the config file's directory,
 unless `[project].root` moves the consumer root elsewhere (so a consumer
 config may live OUTSIDE the tree it describes — `example/consumers/`). The
 sh runners read it through `python3 -m bbh.config <file> get <section.key>`;
@@ -8,7 +8,7 @@ a missing key falls back to the default here, and a key with no default and
 no `--default` is FATAL (exit 3): a runner never runs on an empty value
 silently.
 
-The reader is a TOML SUBSET (`lib/py/bbh/toml_subset.py`): tables, basic
+**[BBH-63]** The reader is a TOML SUBSET (`lib/py/bbh/toml_subset.py`): tables, basic
 and literal strings, integers, booleans, arrays (of scalars or of arrays of
 scalars, possibly multi-line), inline tables of scalars. Dotted names,
 arrays of tables, duplicate keys, floats, escapes and nested inline tables
@@ -16,7 +16,7 @@ are REFUSED — everything it accepts, `tomllib` reads identically
 (`selftest/test_config.sh` proves it on a host that has one). Regexes go in
 `'literal strings'`.
 
-"Origin" says which bin the key came from when it was extracted:
+**[BBH-61]** "Origin" says which bin the key came from when it was extracted:
 **code** = the harness's own contract, not a consumer choice; **config** =
 a literal the lineage carried in source that is a consumer VALUE.
 
@@ -62,7 +62,7 @@ a literal the lineage carried in source that is a consumer VALUE.
 
 ## `[thresholds]` — the comparison classes' numbers (H2)
 
-Read by `lib/py/bbh/thresholds.py` through `BBH_CONFIG` and nowhere else;
+**[BBH-64]** Read by `lib/py/bbh/thresholds.py` through `BBH_CONFIG` and nowhere else;
 every comparator and the proposer import from there. These are a
 consumer's RATIFIED comparison policy, not a tuning knob: changing one is a
 reviewed edit of the config.
@@ -85,7 +85,7 @@ The rest of `[suite]` is the SUITE RUNNER's (`bbh run-suite`, H3):
 
 | key | default | origin | meaning |
 |---|---|---|---|
-| `registry` | `"tests/expected/registry.tsv"` | config | `sha1 <TAB> expectation-set <TAB> notes`; `#` comments; rows only at freeze time, as a build decision |
+| `registry` | `"tests/expected/registry.tsv"` | config | **[BBH-67]** `sha1 <TAB> expectation-set <TAB> notes`; `#` comments; rows only at freeze time, as a build decision |
 | `default_set` | `"vsavj"` | config | the set run when the command line names none |
 | `driver` | `"tools/run_replay_mame.sh"` | config | a path from the consumer root, or a bare name = `drivers/<name>.sh` in the harness (`fake`, `mame`, …); `--driver` overrides |
 | `runs_per_replay` | `2` | code (policy) | every replay is run this many times; any difference is NONDETERMINISTIC and a failure |
@@ -111,7 +111,7 @@ Read by `lib/py/bbh/fingerprint.py` through `--config` or `BBH_CONFIG`.
 
 ## `[sweep]` — the instrument-tier sweep (`bbh run-sweep`, H4)
 
-The registry is `[registries].sweep`: `gate <TAB> lane <TAB> scope <TAB>
+**[BBH-68]** The registry is `[registries].sweep`: `gate <TAB> lane <TAB> scope <TAB>
 cadence <TAB> args <TAB> note [<TAB> timeout]`. The vocabularies of the
 lane, scope and cadence columns are these keys.
 
@@ -138,7 +138,7 @@ lane, scope and cadence columns are these keys.
 | `scratch_lanes` | `["mister"]` | config | lanes whose `--jobs` slots each get their own scratch: slot 0 the base, slot N `<base>-slotN` |
 | `scratch_env` | `"JTSIM_SCRATCH"` | config | the variable carrying it; `""` disables |
 | `scratch_default` | `"vampire-saved-jtsim"` | config | under `${TMPDIR:-/tmp}` when the variable is unset |
-| `prereq_cite` | `"[CPE-24]"` | config | the citation appended to the prereq STOP text ("a measurement taken after a moved instrument is not evidence"); the default is the lineage's rule ID for exactly that sentence, meaningful only there — a consumer names its own rule or sets `""` (the example does) |
+| `prereq_cite` | `"[CPE-24]"` | config | **[BBH-70]** the citation appended to the prereq STOP text ("a measurement taken after a moved instrument is not evidence"); the default is the lineage's rule ID for exactly that sentence, meaningful only there — a consumer names its own rule or sets `""` (the example does) |
 
 ## `[gate_header]` — THE HEADER CONTRACT and THE GATE INDEX (`bbh gate-index`, H5)
 
@@ -186,7 +186,7 @@ default and refuses to guess otherwise.
 | `root_prefix_regex` | `(?:\$\{?REPO\}?/)?` | config | as above |
 | `rompath_suffix` | `"/rompath"` | config | the subdirectory a script dereferences to read the image; a default is judged only if `$VAR<suffix>` appears in the body or the default itself ends in it; `""` = the dir is the image dir |
 | `image_glob` | `"*.zip"` | config | what an image looks like inside it; none = "unbuilt" |
-| `image_prefer` | `["vsavjw", "vsavj"]` | config | substrings, in order, choosing among several images; else the first by name (the lineage took directory order) |
+| `image_prefer` | `["vsavjw", "vsavj"]` | config | **[BBH-56]** substrings, in order, choosing among several images; else the first by name (the lineage took directory order) |
 | `stale_marker` | `["vsw.", "vsw.z01", "no vsw.z01 (pre-WIDE v1.1)"]` | config | `[member prefix, required member, reason]`: an image with any PREFIX member and no REQUIRED member is ROTTED |
 | `predicate` | `""` | config | a command instead of the marker: `$1` = the image, print its one-line description, exit 0 live / 1 rotted |
 | `family_regex` | `^([a-z]+)-m(\d+)$` | config | a registry set name → (family, generation) for the CURRENCY report; group 2 is an integer |
@@ -270,11 +270,11 @@ the lineage's eight are the `[skills]` section of
 
 | key | default | origin | meaning |
 |---|---|---|---|
-| `profile` | **none** | config | a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; with neither, nothing is exported and a MAME driver REFUSES to run. There is deliberately no default: a board is never implied (the example omits the section — its fake driver needs none). The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
+| `profile` | **none** | config | **[BBH-65]** a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; with neither, nothing is exported and a MAME driver REFUSES to run. There is deliberately no default: a board is never implied (the example omits the section — its fake driver needs none). The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
 
 ## `[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`, H6)
 
-A RECORDING is `<corpus_dir>/<name>/{<name>.inp, nvram/, NOTE[, DEFECT]}`:
+**[BBH-69]** A RECORDING is `<corpus_dir>/<name>/{<name>.inp, nvram/, NOTE[, DEFECT]}`:
 the emulator's own input recording, the fresh nvram it started from, a
 one-line note of what it exercises, and — for a captured-but-unfixed crash
 — the expected `vec<n> PC <pc6>` the gate asserts instead (so the capture

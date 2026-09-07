@@ -1,0 +1,31 @@
+# skills.toml — the harness's OWN skill, locked to these docs (bbh check-skills
+# --config skill/skills.toml; selftest/test_skills.sh §5 runs it). The root is
+# the repository: this file lives one level down.
+[project]
+root = ".."
+
+[skills]
+prefixes = ["BBH"]
+guided = ["BBH"]
+guide_origin = "the blackbox-harness repository (bbh), itself extracted from an arcade ROM hack with 304 gates and 4,000 frozen expectations"
+guide_header = [
+  "# {title} — the guide", "",
+  "The human rendition of `SKILL.md` in this directory: the same rules, the same",
+  "IDs, each followed by the INCIDENT that taught it. **GENERATED** by",
+  "`bbh skill-guide` from the documentation paragraph every rule is anchored",
+  "to — never hand-edited; regenerate in the harness. Origin: {origin}. The",
+  "incidents may name that lineage; the RULES name no project, no board and no",
+  "game. The rule is the reminder, the incident is the fact. IDs are stable and",
+  "never reused.", "",
+  "**To use this skill elsewhere:** symlink or copy this directory (`SKILL.md` +",
+  "`GUIDE.md`) into `~/.claude/skills/{name}/`. Nothing in it depends on the",
+  "harness tree at load time.", "",
+]
+
+[skill_BBH]
+path = "skill/blackbox-harness/SKILL.md"
+docs = ["README.md", "docs/doctrine.md", "docs/gate_contract.md", "drivers/README.md", "docs/method/oracle_classes.md", "docs/hygiene.md", "docs/config.md", "docs/lua.md", "docs/conventions.md"]
+logs = ["README.md", "docs/doctrine.md", "docs/gate_contract.md", "drivers/README.md", "docs/method/oracle_classes.md", "docs/hygiene.md", "docs/config.md", "docs/lua.md", "docs/conventions.md", "docs/rebaselines.md", "docs/conventions_history.md", "example/README.md"]
+# level 0 and then one more: no game, no build, no board, no lineage token,
+# and no other skill's IDs (a prefix outside this table is otherwise ignored)
+forbid = ["vsav", "vampire", "donovan", "huitzil", "phobos", "pyron", "tenant", "roster", "demitri", "jedah", "victor", "bishamon", "anita", "oboro", "build/", "merged", "m3b_", "cps", "qsound", "jtcps", "vsavjw", "wide_en", "14z-", "mister", "[RH-", "[VSP-", "[VSE-", "[CPE-", "[CPH-", "[MFI-", "[MJC-", "[MSC-", "[MSV-"]

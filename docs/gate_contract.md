@@ -1,7 +1,7 @@
 # The gate contract — what a gate looks like so the runners can read it
 
 A GATE is one executable script under the consumer's gates dir (default
-`tests/*.sh`). The runners do not read its code; they read its NAME, its
+`tests/*.sh`). **[BBH-11]** The runners do not read its code; they read its NAME, its
 EXIT STATUS and its OUTPUT. The contract is what makes those three mean the
 same thing in every gate.
 
@@ -9,14 +9,14 @@ same thing in every gate.
 
 | the gate | the runner says |
 |---|---|
-| exits non-zero | **FAIL** — whatever it printed. A `SKIP:` line plus a non-zero exit is a FAILURE: the gate ran, could not complete, and said so. |
-| exits 124 or 137 (the timeout wrapper's) | **TIMEOUT** — never FAIL, so a killed gate is not read as a defect in the artifact. |
-| exits 0 and its output carries the shell's own `<script>.sh: line N: NAME: message` | **FAIL** — "exit 0 after a shell error". macOS bash 3.2 exits 0 for a `${VAR:?}` abort once an EXIT trap is armed; a 65-minute gate was once recorded `PASS 0s` on four lines of log. A driver's teardown segfault line (`line N:  <pid> Segmentation fault`) has digits where the NAME would be and is not this. |
-| exits 0 and prints a line matching `^ *SKIP` | **SKIP** — the reason is that line. The word SKIP in PROSE is not a marker. |
+| **[BBH-12]** exits non-zero | **FAIL** — whatever it printed. A `SKIP:` line plus a non-zero exit is a FAILURE: the gate ran, could not complete, and said so. |
+| **[BBH-13]** exits 124 or 137 (the timeout wrapper's) | **TIMEOUT** — never FAIL, so a killed gate is not read as a defect in the artifact. |
+| **[BBH-14]** exits 0 and its output carries the shell's own `<script>.sh: line N: NAME: message` | **FAIL** — "exit 0 after a shell error". macOS bash 3.2 exits 0 for a `${VAR:?}` abort once an EXIT trap is armed; a 65-minute gate was once recorded `PASS 0s` on four lines of log. A driver's teardown segfault line (`line N:  <pid> Segmentation fault`) has digits where the NAME would be and is not this. |
+| **[BBH-15]** exits 0 and prints a line matching `^ *SKIP` | **SKIP** — the reason is that line. The word SKIP in PROSE is not a marker. |
 | exits 0 otherwise | **PASS** |
 
 Both regexes and the exit list are the consumer's `[classify]` section.
-`--strict` makes SKIP fatal: a skipped gate asserts NOTHING, and a clean
+**[BBH-16]** `--strict` makes SKIP fatal: a skipped gate asserts NOTHING, and a clean
 checkout that skips 97% of its gates and reports green is its own false
 green.
 
@@ -36,7 +36,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"; cd "$REPO"
 W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT INT TERM
 ```
 
-After the trap is armed, a demand is an EXPLICIT TEST, never `${VAR:?}`:
+**[BBH-17]** After the trap is armed, a demand is an EXPLICIT TEST, never `${VAR:?}`:
 
 ```sh
 [ -n "${X:-}" ] || { echo "FAIL: set X"; exit 1; }      # or: bbh_demand X "set X"
@@ -49,7 +49,7 @@ example consumer's gates and the harness's own selftests pass it.
 
 ## 3. The header (line 2 is an API)
 
-Line 1 is `#!/bin/sh`. Line 2 is `# <name>.sh — <claim>`, and the header
+**[BBH-18]** Line 1 is `#!/bin/sh`. Line 2 is `# <name>.sh — <claim>`, and the header
 continues until the first bare `#` line. The gate index generator (`bbh
 gate-index`) reads exactly that first paragraph as the gate's index
 sentence, so it is written as the CLAIM the gate locks, not as a description
@@ -62,7 +62,7 @@ the header are `docs/hygiene.md`.
 
 ## 4. The output (one verdict line of the gate's own)
 
-A gate prints its findings and ends with ONE line that states its verdict
+**[BBH-20]** A gate prints its findings and ends with ONE line that states its verdict
 in its own words — `PASS: <what held>` or `FAIL: <what did not>`. The runner
 does not grep for those words (it reads the exit status), but a human
 reading a log does, and a PASS row whose log has NO verdict line of the
@@ -70,7 +70,7 @@ gate's own is read as a crash until proven otherwise.
 
 ## 5. The must-fire control (a check that cannot fail is not a check)
 
-Every gate that asserts a property PERTURBS an input and requires its own
+**[BBH-21]** Every gate that asserts a property PERTURBS an input and requires its own
 check to fail for the stated reason. Three shapes, in order of how often
 they fit:
 
@@ -88,7 +88,7 @@ refuses a verdict.
 
 ## 6. Registration (a gate that is not in a registry is not run)
 
-A gate that needs no instrument is in `ci_portable.txt` (runs on a clean
+**[BBH-22]** A gate that needs no instrument is in `ci_portable.txt` (runs on a clean
 checkout) or `ci_static.txt` (needs the input the consumer names in
 `[registries].static_needs_env`, or a build dir, but no instrument). A gate
 that reaches an instrument — directly, or through a sourced lib — belongs to
@@ -100,7 +100,7 @@ is just a smaller thing to forget to update.
 
 ## 7. What the harness will NOT do
 
-It will not read a gate's code to decide anything, will not guess a skip
+**[BBH-24]** It will not read a gate's code to decide anything, will not guess a skip
 from prose, will not count a self-skipping gate as a pass, will not edit a
 running script (the shell reads by byte offset), and will not weaken the
 classifier to make a consumer green: a delta between this classifier and

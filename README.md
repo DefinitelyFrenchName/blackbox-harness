@@ -15,7 +15,7 @@ survived is here; what did not stayed there.
 |---|---|---|
 | **the verdict classifier** (`lib/sh/classify.sh`) | PASS / SKIP / FAIL / TIMEOUT from an exit status and a log — exit status decides FIRST, SKIP is only ever exit 0 plus a marker, an exit 0 after the shell's own error line is a crash, a killed gate is TIMEOUT not FAIL | H1 |
 | **the pre-commit chain** (`bbh run-static`) | every gate that needs no instrument, in two tiers (portable / static), tallied separately, `--strict`, an anti-orphan report, a working-tree snapshot | H1 |
-| **the tier classifier** (`bbh tier`) | which gates reach an instrument — transitively, through sourced libs — so none falls between the runners | H1 |
+| **the tier classifier** (`bbh tier`) | **[BBH-23]** which gates reach an instrument — transitively, through sourced libs — so none falls between the runners | H1 |
 | **the demand-after-trap lint** (`bbh demand-after-trap`) | the `${VAR:?}`-after-`trap … EXIT` shape that exits 0 on macOS bash 3.2 | H1 |
 | **the gate contract and prologue** (`docs/gate_contract.md`, `lib/sh/prologue.sh`) | what a gate looks like so the runners can read it | H1 |
 | **the comparison classes** (`lib/py/bbh/compare_*.py`, `check_diverge.py`, `describe_masked_shape.py`, `docs/method/oracle_classes.md`) | exact / flicker-tolerated / frozen first-divergence / bounded re-convergent window / composite — the thresholds declared ONCE (`thresholds.py`, consumer-overridable), the log grammar parsed once (`logfmt.py`), a proposer that cannot disagree with the enforcers | H2 |
@@ -28,7 +28,7 @@ survived is here; what did not stayed there.
 | **expectation and gate hygiene** (`bbh provenance`, `bbh header-defaults`, `bbh ref-rot`, `bbh gate-index`; `lib/sh/shadow_tools.sh`, `lib/sh/accounting.sh`) | every frozen expectation file has a row in a register naming a CLOSED evidence class (a red gate is a question, and its first question is which side rests on a measurement); a gate's header names the default its CODE uses; a hard-coded path default that exists but is too old is ROTTED (absent is not rotted; currency is reported, never failed); the gate index is GENERATED from the headers and a family TSV, complete both ways; a perturbation control edits a shadow copy, never the tracked tool; a battery cannot print GREEN while a gate self-skipped — the one header parser (`gate_header.py`) under all of it | H5 |
 | **the MAME Lua layer under a MACHINE PROFILE, the real drivers, the recording corpus** (`lua/mame/`, `drivers/mame.sh`, `mame_guarded.sh`, `fbneo.sh`, `bbh inp-play`, `bbh inp-corpus`, `docs/lua.md`) | the replay engine (per-frame RAM hashes, masks as a basis, dumps, pokes, snapshots, a video log, the always-on input-integrity assertion with its must-fire), the crash guard (`-debug` breakpoints on the vectors, or cheap-mode PC classification), the taps and the recording guard — every board literal (CPU, space, RAM window, port map, exception frame, exception store) in ONE Lua table per board (`profiles/cps2.lua`, `cps2w.lua`, `TEMPLATE.lua`), the grammar in ONE module whose parse equals `rpl.py`'s; headless, sandboxed, input-isolated drivers that REFUSE what they cannot honour; recordings replayed under the guard at every freeze, a dead playback never read as clean | H6 |
 | **the skills lock and the guide generator** (`bbh check-skills`, `bbh skill-guide`, `lib/py/bbh/checkskills.py`, `gen_skill_guide.py`) | a SKILL — an agent-facing distillation of the docs that loads BEFORE the work — is ID-locked to the paragraph each rule distils (anchored `**[PFX-N]**`, both ways), names no forbidden token (a game, a build, a board, another skill's IDs), quotes no number that is not in a log (a page or its `_history.md` twin), and its GUIDE.md — the same rules with the incident behind each — is GENERATED from those paragraphs; `[skills]` + one `[skill_<PFX>]` table per skill | H10 |
-| **mapped-field comparison at anchors, and dump completeness** (`bbh compare-fields`, `bbh check-dumps`) | the dual-implementation protocol: two implementations traverse identical states on different frame indices, so the comparable thing is the MAPPED state (a fields TSV) at the debounced rising edge of a predicate on the dumped RAM, at the anchor and at offsets after it — `--exact` for same-implementation runs; the predicate, the bases and the debounce are the consumer's `[fields]`; and because the comparator GLOBS, the producer asserts the dump set is complete first (a hole silently moves an anchor) | H7 |
+| **mapped-field comparison at anchors, and dump completeness** (`bbh compare-fields`, `bbh check-dumps`) | **[BBH-80]** the dual-implementation protocol: two implementations traverse identical states on different frame indices, so the comparable thing is the MAPPED state (a fields TSV) at the debounced rising edge of a predicate on the dumped RAM, at the anchor and at offsets after it — `--exact` for same-implementation runs; the predicate, the bases and the debounce are the consumer's `[fields]`; and because the comparator GLOBS, the producer asserts the dump set is complete first (a hole silently moves an anchor) | H7 |
 
 Every piece ships with its ground truth under `selftest/` — ROM-free, no
 emulator — and most selftests carry a MUST-FIRE control: an input perturbed
@@ -46,6 +46,7 @@ FAKE_ROOT=. ../bin/bbh run-static     # …with its static tier
 FAKE_ROOT=. FAKE_ROMPATH=roms/build-a ../bin/bbh run-suite   # the replay suite on a fake build (example/README.md)
 FAKE_ROOT=. ../bin/bbh run-sweep --scope all   # the instrument-tier sweep: prereq + fake lanes
 ../bin/bbh doctor --config bbh.toml   # can this host run it?
+ln -s ~/Developer/blackbox-harness/skill/blackbox-harness ~/.claude/skills/blackbox-harness   # the SKILL, loaded by every session on this machine
 ```
 
 Then in your project: copy `bbh.toml.example` to `bbh.toml`, name your gates
@@ -91,7 +92,8 @@ selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fide
             and F2 opt-in, and test_fidelity_mame.sh, F8 on the real emulators — opt-in, BBH_MAME_FIDELITY=1)
 example/    a complete tiny consumer: fakesys/ (the fake machine + ROM generator), roms/, replays/, expected/, tests/
             (+ consumers/ for real ones); tests/fields.tsv + g_fields.sh: the dual-implementation protocol on the fake
-skill/      the harness's SKILL (the agent-facing distillation of these docs, locked to them) — its home once written
+skill/      blackbox-harness/{SKILL.md, GUIDE.md} — the agent-facing distillation of these docs ([BBH-1..87], locked by
+            bbh check-skills, the guide GENERATED) and skills.toml, its lock config; symlink the directory into ~/.claude/skills/
 docs/       doctrine.md gate_contract.md config.md hygiene.md lua.md conventions.md rebaselines.md method/oracle_classes.md
             <name>_history.md twins carry a page's complete LOG (docs/doctrine.md §3); the page stays lean
 ```

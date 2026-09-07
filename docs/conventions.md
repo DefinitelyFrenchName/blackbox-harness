@@ -1,7 +1,7 @@
 # Conventions — the harness's ruled defaults, and what each would cost to change
 
 The harness was extracted under stated assumptions, each open to veto until
-its maintainer ruled on it (2026-09-07). This page is the register: what
+its maintainer ruled on it (2026-09-07). **[BBH-84]** This page is the register: what
 each default IS, why, and the alternative that was declined. A default that
 is not written down is a default nobody can veto; a change to any row here
 is a ruling, dated in place, never a silent edit. (The license is NOT a
@@ -12,7 +12,7 @@ default — `README.md` states it.)
    the plan stage (2026-09-06). A consumer clones or forks it; nothing here
    depends on any consumer's tree.
 
-2. **A consumer finds the harness by `$BBH_HOME`, and by convention beside
+2. **[BBH-85]** **A consumer finds the harness by `$BBH_HOME`, and by convention beside
    its tree or its tree's parent; it is never a submodule.** Ruled
    2026-09-07. A submodule would pin a version and make the pairing
    explicit, at the price of a pin-bump ritual and a push-order trap (a pin
@@ -21,7 +21,7 @@ default — `README.md` states it.)
    instrument of any consumer's artifact, so it does not need pinning. The
    cost that stays: the two repositories move TOGETHER — see 10.
 
-3. **Lifted comments keep their incident citations (`14z-N` session tags,
+3. **[BBH-86]** **Lifted comments keep their incident citations (`14z-N` session tags,
    `GitHub #N`) as history lines; no consumer's rule anchor travels.** Ruled
    2026-09-07. The citations name dated incidents that make a guard legible,
    and the archive that resolves them is public. Bare rule IDs from the
@@ -29,7 +29,7 @@ default — `README.md` states it.)
    here; they are translated into words when the harness skill is written,
    which decides which IDs exist in the harness's world.
 
-4. **Drivers: `fake`, `mame`, `mame_guarded`, `fbneo`. An FPGA/Verilator
+4. **[BBH-87]** **Drivers: `fake`, `mame`, `mame_guarded`, `fbneo`. An FPGA/Verilator
    driver stays with its consumer.** Ruled 2026-09-07. The lineage's
    Verilator lane produces per-frame RAM dumps rather than the replay log
    grammar, needs a forked core and a generated ROM image, and runs at about
@@ -42,7 +42,7 @@ default — `README.md` states it.)
    TOP-LAYER package that handles documentation, if one is ever built, and
    not before.
 
-6. **A consumer that does not consume the harness keeps its config HERE
+6. **[BBH-66]** **A consumer that does not consume the harness keeps its config HERE
    (`example/consumers/<name>.toml`), and that config's `[project].root` is
    one host's layout — so the consumer's own gate passes its location as
    `BBH_FIDELITY_ROOT`, and `selftest/test_fidelity_vampire.sh` derives a
@@ -53,7 +53,7 @@ default — `README.md` states it.)
    environment override inside the config resolver: that would leak into
    every other config the same run opens (the fake repo of F1, the example).
 
-7. **ONE verdict classifier, `lib/sh/classify.sh`, the STRONGER of the two
+7. **[BBH-82]** **ONE verdict classifier, `lib/sh/classify.sh`, the STRONGER of the two
    copies the lineage carried** (the timeout exits, exit 0 after the
    shell's own error line as FAIL, the SKIP marker last), its regexes and
    exit list `[classify]` config. Ruled 2026-09-07 as RESOLVED rather than
@@ -61,7 +61,7 @@ default — `README.md` states it.)
    runners the same day, and F2 — the whole live portable tier through both
    static runners — measured identical (65 rows).
 
-8. **The fidelity contract's text is never changed silently.** Ruled
+8. **[BBH-83]** **The fidelity contract's text is never changed silently.** Ruled
    2026-09-07, replacing the extraction-era rule "no verdict-string change
    before the last slice is green" (expired by its own terms at H9). A
    verdict-text or classifier change lands on BOTH sides in one sitting,

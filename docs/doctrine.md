@@ -10,7 +10,7 @@ is the lineage's own history, not this page.
 
 ## 1. The extraction question, and the four bins
 
-Everything here passed one test, asked of every piece of the lineage's
+**[BBH-1]** Everything here passed one test, asked of every piece of the lineage's
 harness: *would this still be true if the thing under test were not that
 ROM, not that board, not even a game?* What survived is CODE (true for
 anything: the classifier, the runners, the grammars, the comparison
@@ -23,7 +23,7 @@ without inheriting the lineage's game.
 
 ## 2. The seven sentences
 
-**No untested change survives.** Every change to a gate, a driver, a
+**[BBH-2]** **No untested change survives.** Every change to a gate, a driver, a
 comparator or an expectation is run through the harness before it is
 committed — "it should be equivalent" is not a test result. The lineage
 inherited this from an earlier project where systematic in-emulator
@@ -32,7 +32,7 @@ the harness's own gate chain (`selftest/run.sh`) is classified by the same
 classifier the runners use, and the fidelity checks re-run the lineage's
 tools beside this harness's on every change to a lifted piece.
 
-**Every in-instrument measurement becomes a rerunnable case.** A probe run
+**[BBH-3]** **Every in-instrument measurement becomes a rerunnable case.** A probe run
 during development — a measurement, a sanity check, a "let me just look" —
 is captured as a scripted gate before the session ends; the suite only
 grows. The lineage's most valuable artifact is that suite, above every
@@ -40,7 +40,7 @@ unit test. Mechanism: the registries (`docs/gate_contract.md` §6) and the
 anti-orphan reports of `bbh run-static` and `bbh run-sweep`, which name
 every gate that exists and is registered nowhere.
 
-**Verdict logic is itself tested.** A classifier's verdicts are validated
+**[BBH-4]** **Verdict logic is itself tested.** A classifier's verdicts are validated
 against known ground-truth cases before they are trusted, in BOTH
 directions — a gate born against a live defect has never exercised PASS.
 The lineage's predecessor shipped a wrong conclusion from a verdict bug,
@@ -49,7 +49,7 @@ not a game bug. Mechanism: every selftest here carries a MUST-FIRE control
 for the stated reason — and a control that passes for the wrong reason is
 itself a failure.
 
-**A field report is a RECORDING before it is a theory.** A reproducible
+**[BBH-5]** **A field report is a RECORDING before it is a theory.** A reproducible
 crash a human can produce is captured first as the machine's own input
 recording with the fresh state it started from, and replayed under a guard
 at every freeze; mechanism theories come after. The lineage spent three
@@ -60,7 +60,7 @@ its rarer scripts. Mechanism: `bbh inp-play`, `bbh inp-corpus` and the
 recording guard (`docs/lua.md` §4), with a liveness predicate so a dead
 playback is never read as clean.
 
-**SKIP is not PASS.** A gate whose inputs are absent prints a `SKIP:` line
+**[BBH-6]** **SKIP is not PASS.** A gate whose inputs are absent prints a `SKIP:` line
 and exits 0; counting that as a pass is how a clean checkout that runs 3%
 of its gates reports itself green. Exit status decides first, the SKIP
 marker is read only on exit 0, and `--strict` makes a skip fatal.
@@ -68,7 +68,7 @@ Mechanism: `lib/sh/classify.sh` — the ONE classifier, sourced by every
 runner, because the lineage carried two copies that DIFFERED and a crash
 read PASS under one of them for five sessions.
 
-**A red gate is a QUESTION whose first question is which side rests on a
+**[BBH-7]** **A red gate is a QUESTION whose first question is which side rests on a
 measurement.** Before choosing fix-the-gate / fix-what-it-caught / delete,
 establish which side's expectation was MEASURED; a frozen number whose
 provenance cannot be named is a claim with a number in it. The lineage
@@ -77,7 +77,7 @@ measured — right by luck. Mechanism: `bbh provenance` (`docs/hygiene.md`)
 demands a row with a CLOSED evidence class for every frozen expectation
 file, complete both ways.
 
-**When a claim changes, grep for the claim.** A finding does not live in
+**[BBH-8]** **When a claim changes, grep for the claim.** A finding does not live in
 one place: it propagates into headers, summary lines, registry rows and
 gate comments, and the copies outlive the correction. Fixing "where I
 remember writing it" is how a document asserts the opposite of the
@@ -90,7 +90,7 @@ fidelity contract is a dated line every run prints (`docs/rebaselines.md`).
 
 ## 3. The documentation convention (ruled by the lineage's maintainer, 2026-09-07)
 
-The docs stay LEAN and are searched by KEY: a reference page carries one
+**[BBH-9]** The docs stay LEAN and are searched by KEY: a reference page carries one
 rule per paragraph, and a rule that a skill distils is ANCHORED there with
 a stable ID (`**[BBH-N]**`) at the paragraph that records it, so the skill,
 the page and the guide generated from the page cannot drift apart
@@ -103,9 +103,21 @@ what is true, the twin says how it came to be known, and nothing is
 deleted from either — a corrected claim is marked in place with what
 replaced it.
 
-## 4. What the doctrine is not
+## 4. How an extraction is proved
 
-It is not a tuning guide. The thresholds, the masks, the evidence classes
+**[BBH-81]** The extraction is PROVED, never asserted: the generic tool and the
+original are run over the SAME input and their verdict TEXT is diffed —
+never expected values re-derived by hand, never a re-implementation's
+opinion of what the answer should be. Where the original prints a number,
+the generic prints the same number in the same place, or the diff is not
+empty; a fidelity row that goes red names a change on one side that the
+other did not make. (`selftest/test_fidelity_vampire.sh` is the lineage's
+contract, F1-F11; `docs/rebaselines.md` is where its text is allowed to
+move, loudly.)
+
+## 5. What the doctrine is not
+
+**[BBH-10]** It is not a tuning guide. The thresholds, the masks, the evidence classes
 and the scopes are the consumer's RATIFIED policy (`docs/config.md`), and
 the harness's job is to make a change to any of them a reviewed edit
 rather than a knob turned to make a red green. And it is not a claim about
