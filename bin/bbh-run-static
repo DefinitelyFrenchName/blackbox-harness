@@ -189,6 +189,29 @@ else
     fi
 fi
 
+# NOTE-class numbers: a measurement a gate REPORTS but never gates on. A
+# verdict is per GATE; a NOTE is per NUMBER, and one gate can report several,
+# so this is deliberately NOT a fifth verdict in lib/classify.sh - that would
+# have to reach every runner and its ground truth. The convention: a gate
+# prints `NOTE: <key> <value>` at column 0, exits 0 with its usual PASS, and
+# this block surfaces it. A number moving the wrong way is the signal.
+echo
+echo "== NOTE-class numbers (reported, never fatal) =="
+_notes=0
+for _f in "$WORK"/*.out; do
+    [ -f "$_f" ] || continue
+    _g="$(basename "$_f" .out)"
+    while IFS= read -r _line; do
+        # an EMPTY command substitution still feeds `read` one blank line
+        [ -n "$_line" ] || continue
+        printf '  %-34s %s\n' "$_g" "${_line#NOTE: }"
+        _notes=$((_notes + 1))
+    done <<EOF
+$(grep '^NOTE: ' "$_f" 2>/dev/null || true)
+EOF
+done
+[ "$_notes" = 0 ] && echo "  (none)"
+
 echo
 echo "======================================================================"
 printf 'PASS %-4s  SKIP %-4s  FAIL %-4s  MISSING %s\n' \
