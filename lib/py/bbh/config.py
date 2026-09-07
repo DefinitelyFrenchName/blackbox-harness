@@ -17,6 +17,30 @@ import sys
 from . import toml_subset
 
 DEFAULTS = {
+    # [skills] — the skills lock and the guide generator (H10). The table is
+    # `prefixes` + one [skill_<PFX>] table each (docs/config.md); these are
+    # the settings around it. The guide_header lines are the lineage's exact
+    # text, so its committed guides regenerate byte-identical (fidelity F11).
+    "skills": {
+        "prefixes": [],                       # the skills, IN ORDER; each has a [skill_<PFX>] table
+        "history_regex": r"_(history|HISTORY)\.md$",   # a LOG file matching this is a history twin: numbers resolve there, anchors may not live there
+        "history_exempt": [],                 # logs matching the regex that are session ARCHIVES, not twins (the lineage: STATE_HISTORY.md, DECISIONS_HISTORY.md)
+        "guided": [],                         # the skills with a GENERATED GUIDE.md beside SKILL.md
+        "guide_origin": "",                   # substituted for {origin} in guide_header
+        "guide_header": [                     # the guide's opening lines; {title} {name} {origin} substituted
+            "# {title} — the guide", "",
+            "The human rendition of `SKILL.md` in this directory: the same rules, the same",
+            "IDs, each followed by the INCIDENT that taught it. **GENERATED** by",
+            "`tools/gen_skill_guide.py` of the originating project from the documentation",
+            "paragraph every rule is anchored to — never hand-edited; regenerate there.",
+            "Origin: {origin}. The incidents therefore name that project's game, builds,",
+            "gates and session tags (`14z-N`); the RULES do not. The rule is the reminder,",
+            "the incident is the fact. IDs are stable and never reused; a gap means the",
+            "rule stayed at the origin's board-specific level.", "",
+            "**To use this skill elsewhere:** copy this directory (`SKILL.md` + `GUIDE.md`)",
+            "into `~/.claude/skills/{name}/`. Nothing in it depends on the origin tree.", "",
+        ],
+    },
     "project": {
         "root": ".",                # the consumer tree, relative to the config file
         "gates_dir": "tests",

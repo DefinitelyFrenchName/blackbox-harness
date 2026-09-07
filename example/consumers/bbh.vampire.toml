@@ -88,3 +88,61 @@ profile = "cps2w"
 mame_bin_default = "$HOME/.cache/vampire-saved/mame/cps2"
 max_frames = 6000
 stop_after = 5
+
+# [skills] — the lineage's eight skills, GENERATED from tools/checkskills.py's
+# table (never hand-transcribed): fidelity F11 runs bbh check-skills with this
+# section over that tree and diffs against the lineage's own tool.
+[skills]
+prefixes = ["VSP", "VSE", "MSC", "MSV", "CPH", "CPE", "MFI", "MJC"]
+history_exempt = ["STATE_HISTORY.md", "DECISIONS_HISTORY.md"]
+guided = ["MFI", "MJC"]
+guide_origin = "Project VAMPIRE SAVED — the full-roster Vampire Savior romhack on the real CPS-2 engine (FBNeo and MAME as instruments, a jtframe core on MiSTer)"
+
+[skill_VSP]
+path = ".claude/skills/vampire-saved-port/SKILL.md"
+docs = ["CLAUDE.md", "HANDOFF.md", "STATE.md", "docs/project/gotchas.md", "docs/game/gotchas.md", "docs/project/porting_code_regions.md", "docs/project/porting_sprite_lists.md", "docs/project/tenant_manifest.md", "docs/project/build_dir_triage.md", "docs/project/hardening_register.md", "docs/project/patch_index.md", "docs/project/cps2_wide.md", "docs/project/oracle_classes.md", "docs/project/gate_scoping_method.md"]
+logs = ["docs/project/gotchas.md", "docs/project/patch_notes.md", "docs/project/patch_index.md", "HANDOFF.md", "CLAUDE.md", "docs/project/oracle_classes.md", "STATE.md", "STATE_HISTORY.md", "docs/project/build_dir_triage_history.md", "HANDOFF_HISTORY.md"]
+forbid = []
+sections = [["STATE.md", "## STANDING PRINCIPLE", "## THE DEADNESS REGISTER"]]
+
+[skill_VSE]
+path = ".claude/skills/vampire-savior-engine/SKILL.md"
+docs = ["docs/game/engine_internals.md", "docs/game/gotchas.md", "docs/game/atlas/README.md", "docs/game/atlas/ram.md", "docs/game/atlas/character_tables.md", "docs/game/atlas/id_space.md", "docs/game/atlas/select_screen.md", "docs/game/atlas/sprite_lists.md", "docs/game/atlas/venue_assets.md"]
+logs = ["docs/game/engine_internals.md", "docs/game/gotchas.md", "docs/game/atlas/README.md", "docs/game/atlas/ram.md", "docs/game/atlas/character_tables.md", "docs/game/atlas/id_space.md", "docs/game/atlas/select_screen.md", "docs/game/atlas/sprite_lists.md", "docs/game/atlas/venue_assets.md", "docs/game/engine_internals_history.md"]
+forbid = ["tenant", "build/", "merged", "m3b_", "wide_ext", "gen_donovan", "gen_huitzil", "gen_pyron", ".toml", "x101aca", "x088512", "32007911"]
+
+[skill_MSC]
+path = ".claude/skills/mister-cps2-wide-core/SKILL.md"
+docs = ["docs/platform/mister.md", "docs/project/mister_core.md", "docs/project/mister_map.md", "docs/project/mister_fit.md", "docs/project/mister_field.md", "docs/project/cps2_wide.md", "docs/project/release_format.md", "docs/platform/gotchas.md", "docs/project/gotchas.md", "HANDOFF.md", "CLAUDE.md"]
+logs = ["docs/platform/mister.md", "docs/platform/mister_history.md", "docs/project/mister_map.md", "docs/project/mister_fit.md", "docs/project/mister_field.md", "docs/project/release_format.md", "docs/platform/gotchas.md", "docs/project/gotchas.md", "release/bitstreams/18269/BITSTREAM.txt", "HANDOFF_HISTORY.md"]
+forbid = ["vsav", "vampire", "donovan", "huitzil", "phobos", "pyron", "tenant", "roster", "demitri", "jedah", "victor", "bishamon", "anita", "oboro", "0xEE73", "0xFFDB", "0x8E57F0", "0x5FFF1E", "32007911", "build/", "merged", "m3b_"]
+
+[skill_MSV]
+path = ".claude/skills/mister-vampire-saved/SKILL.md"
+docs = ["docs/platform/mister.md", "docs/project/mister_core.md", "docs/project/mister_map.md", "docs/project/mister_fit.md", "docs/project/mister_field.md", "docs/project/cps2_wide.md", "docs/project/release_format.md", "docs/platform/gotchas.md", "docs/project/gotchas.md", "HANDOFF.md", "CLAUDE.md"]
+logs = ["docs/platform/mister.md", "docs/platform/mister_history.md", "docs/project/mister_map.md", "docs/project/mister_fit.md", "docs/project/mister_field.md", "docs/project/release_format.md", "docs/platform/gotchas.md", "docs/project/gotchas.md", "release/bitstreams/18269/BITSTREAM.txt", "HANDOFF_HISTORY.md"]
+forbid = []
+
+[skill_CPH]
+path = ".claude/skills/cps2-hardware/SKILL.md"
+docs = ["docs/platform/gotchas.md", "docs/project/gotchas.md", "docs/project/cps2_wide.md", "HANDOFF.md", "docs/game/atlas/ram.md"]
+logs = ["docs/platform/gotchas.md", "docs/project/gotchas.md", "docs/project/cps2_wide.md", "HANDOFF.md", "docs/checksums.txt", "HANDOFF_HISTORY.md"]
+forbid = ["vsav", "vampire", "donovan", "huitzil", "phobos", "pyron", "tenant", "roster", "demitri", "jedah", "victor", "bishamon", "anita", "oboro", "0xEE73", "0xFFDB", "0x8E57F0", "0x5FFF1E", "32007911", "build/", "merged", "m3b_", "manifest/", ".toml", "setup_mame", "setup_fbneo"]
+
+[skill_CPE]
+path = ".claude/skills/cps2-emulation/SKILL.md"
+docs = ["docs/platform/gotchas.md", "docs/project/gotchas.md", "docs/project/cps2_wide.md", "HANDOFF.md", "docs/game/atlas/ram.md"]
+logs = ["docs/platform/gotchas.md", "docs/project/gotchas.md", "docs/project/cps2_wide.md", "HANDOFF.md", "docs/checksums.txt", "HANDOFF_HISTORY.md"]
+forbid = ["vsav", "vampire", "donovan", "huitzil", "phobos", "pyron", "tenant", "roster", "demitri", "jedah", "victor", "bishamon", "anita", "oboro", "0xEE73", "0xFFDB", "0x8E57F0", "0x5FFF1E", "32007911", "build/", "merged", "m3b_", "manifest/", ".toml"]
+
+[skill_MFI]
+path = ".claude/skills/mame-fbneo-instruments/SKILL.md"
+docs = ["docs/platform/gotchas.md", "docs/project/gotchas.md", "docs/project/cps2_wide.md", "HANDOFF.md", "docs/game/atlas/ram.md"]
+logs = ["docs/platform/gotchas.md", "docs/project/gotchas.md", "docs/project/cps2_wide.md", "HANDOFF.md", "docs/checksums.txt", "HANDOFF_HISTORY.md"]
+forbid = ["vsav", "vampire", "donovan", "huitzil", "phobos", "pyron", "tenant", "roster", "demitri", "jedah", "victor", "bishamon", "anita", "oboro", "0xEE73", "0xFFDB", "0x8E57F0", "0x5FFF1E", "32007911", "build/", "merged", "m3b_", "cps", "qsound", "jtcps", "vsavjw", "wide_en", "manifest/", ".toml"]
+
+[skill_MJC]
+path = ".claude/skills/mister-jtframe-core/SKILL.md"
+docs = ["docs/platform/mister.md", "docs/project/mister_core.md", "docs/project/mister_map.md", "docs/project/mister_fit.md", "docs/project/mister_field.md", "docs/project/cps2_wide.md", "docs/project/release_format.md", "docs/platform/gotchas.md", "docs/project/gotchas.md", "HANDOFF.md", "CLAUDE.md"]
+logs = ["docs/platform/mister.md", "docs/platform/mister_history.md", "docs/project/mister_map.md", "docs/project/mister_fit.md", "docs/project/mister_field.md", "docs/project/release_format.md", "docs/platform/gotchas.md", "docs/project/gotchas.md", "release/bitstreams/18269/BITSTREAM.txt", "HANDOFF_HISTORY.md"]
+forbid = ["vsav", "vampire", "donovan", "huitzil", "phobos", "pyron", "tenant", "roster", "demitri", "jedah", "victor", "bishamon", "anita", "oboro", "0xEE73", "0xFFDB", "0x8E57F0", "0x5FFF1E", "32007911", "build/", "merged", "m3b_", "cps", "qsound", "jtcps", "vsavjw", "wide_en"]

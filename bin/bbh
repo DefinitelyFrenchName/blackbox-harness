@@ -23,6 +23,8 @@
 #   bbh check-dumps <dir> --first F --last L | --contiguous              a dump set is complete (lib/py/bbh/check_dumps.py; H7)
 #   bbh inp-play --set S --rompath "b;r" --inp <dir> [--out d]   play a MAME recording under the crash guard (H6)
 #   bbh inp-corpus [--config bbh.toml] [--build d] [--only n]    every tracked recording, no exception (H6)
+#   bbh check-skills [--config bbh.toml] [--root DIR] [-v]   a consumer's SKILLS locked to the docs they distil (lib/py/bbh/checkskills.py; H10)
+#   bbh skill-guide [--config bbh.toml] [--check] [--prefix P] the GENERATED GUIDE.md beside a portable SKILL.md (H10)
 #   bbh doctor [--config bbh.toml]  is this host able to run the harness?
 #   bbh selftest                  the harness's own gate chain (selftest/run.sh)
 #
@@ -58,6 +60,8 @@ compare-fields)    exec python3 -m bbh.compare_fields "$@" ;;
 check-dumps)       exec python3 -m bbh.check_dumps "$@" ;;
 inp-play)          exec "$BBH_HOME/bin/bbh-inp-play" "$@" ;;
 inp-corpus)        exec "$BBH_HOME/bin/bbh-inp-corpus" "$@" ;;
+check-skills)      exec python3 -m bbh.checkskills "$@" ;;
+skill-guide)       exec python3 -m bbh.gen_skill_guide "$@" ;;
 doctor)            exec "$BBH_HOME/bin/bbh-doctor" "$@" ;;
 selftest)          exec "$BBH_HOME/selftest/run.sh" "$@" ;;
 -h|--help|help)    sed -n '2,28p' "$0"; exit 0 ;;

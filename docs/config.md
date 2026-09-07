@@ -232,6 +232,40 @@ the lineage; here they are the consumer's.
 | `settle` | `120` | config (policy) | `settled` fields are compared at offsets ≥ this (`--settle` overrides) |
 | `integrity_hint` | the lineage's two lines | config | printed under `DUMP INTEGRITY FAILED` |
 
+## `[skills]` and `[skill_<PFX>]` — the skills lock and the guide generator (`bbh check-skills`, `bbh skill-guide`, H10)
+
+A SKILL is an agent-facing distillation of the docs that loads BEFORE the
+work; a stale one is a confidently wrong instruction. Every rule
+`- [PFX-N]` in a skill is anchored `**[PFX-N]**` at the paragraph it
+distils, and the lock asserts it both ways, that the skill names no
+forbidden token, that every number it quotes is in a LOG, and that every
+cross-reference to a configured prefix resolves (`docs/hygiene.md`). The
+TOML subset has no arrays of tables, so the table is `prefixes` plus one
+`[skill_<PFX>]` table per skill, in that order.
+
+| key | default | origin | meaning |
+|---|---|---|---|
+| `prefixes` | `[]` | config | the skills, IN ORDER (the verbose listing follows it); each needs its `[skill_<PFX>]` table |
+| `history_regex` | `_(history\|HISTORY)\.md$` | code | a log file matching it is a history TWIN: numbers resolve there, an anchor may never live there (`docs/doctrine.md` §3) |
+| `history_exempt` | `[]` | config | logs matching the regex that are session ARCHIVES, not twins (the lineage: its two STATE archives) |
+| `guided` | `[]` | config | the skills with a GENERATED `GUIDE.md` (`bbh skill-guide`; `--check` in a gate) |
+| `guide_origin` | `""` | config | substituted for `{origin}` in the header |
+| `guide_header` | the lineage's twelve lines | config | the guide's opening lines, `{title}` `{name}` `{origin}` substituted — the default is the lineage's exact text, so its committed guides regenerate byte-identical (F11) |
+
+One table per skill:
+
+| key | meaning |
+|---|---|
+| `path` | the `SKILL.md`, from the consumer root; it opens with `name:` / `description:` frontmatter |
+| `docs` | the pages its anchors may live in — each anchor exactly once across them |
+| `logs` | the files a number it quotes must appear in verbatim (the pages themselves, their `_history.md` twins, a measurements file) |
+| `forbid` | tokens the skill's BODY may not contain, case-insensitively (a game name, a build dir, a board name; a bracket token like `[XYZ-` to bar cross-references to a skill outside the table — a prefix not in `prefixes` is otherwise IGNORED) |
+| `sections` | optional: `[[file, "## Header", ...], ...]` — anchors in that file may sit only under those headers (a file that rolls over) |
+
+The harness's own skill is `skill/skills.toml` (`[project] root = ".."`);
+the lineage's eight are the `[skills]` section of
+`example/consumers/bbh.vampire.toml`, generated from its checker's table.
+
 ## `[machine]` — the machine profile the MAME drivers run under (H6)
 
 | key | default | origin | meaning |

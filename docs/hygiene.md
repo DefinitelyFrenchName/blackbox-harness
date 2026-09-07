@@ -18,6 +18,7 @@ runs them in one portable gate (`example/tests/g_hygiene.sh` is the shape).
 | `lib/sh/accounting.sh` | a battery cannot print GREEN while a gate self-skipped; a FAIL, a shell error read as exit 0, or a timeout stops it and names the gate | nine of ~24 gates never ran on a machine without the instrument and the script still printed BATTERY GREEN |
 | `lib/sh/shadow_tools.sh` | a perturbation control edits a COPY under a shadow root whose siblings are symlinks; the tracked tool is never written | controls edited the tracked generator in place and restored on an exit trap — which covers Ctrl-C and nothing else |
 | `bbh demand-after-trap` (H1) | no `${VAR:?}` demand after an EXIT trap | a 65-minute gate recorded `PASS 0s` |
+| `bbh check-skills` / `bbh skill-guide` (H10) | a SKILL (an agent-facing distillation of the docs, loaded BEFORE the work) is ID-locked to the paragraphs it distils, both ways; it names no forbidden token; every number it quotes is in a log; its cross-references resolve; its GUIDE.md is GENERATED from the anchored paragraphs and `--check`ed | the lineage's first skill run found five figures the skills needed that no log carried, and a stale skill is a confidently wrong instruction |
 
 ## The register (`bbh provenance`)
 

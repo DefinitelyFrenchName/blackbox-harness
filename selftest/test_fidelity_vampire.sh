@@ -36,6 +36,9 @@
 #       + stderr + exit diffed.
 #   F8  lives in selftest/test_fidelity_mame.sh (opt-in, BBH_MAME_FIDELITY=1: the
 #       Lua layer, the drivers and the recording tools on the real emulators).
+#   F11 the skills lock and the guide generator (H10): bbh check-skills -v with
+#       the lineage's GENERATED [skills] section == tools/checkskills.py -v over
+#       its eight skills; bbh skill-guide --check finds its two guides CURRENT.
 #   F2  (BBH_FIDELITY_F2=1) the lineage's whole portable tier through both
 #       runners, verdict columns diffed — never alongside another gate run
 #       in that tree.
@@ -370,6 +373,20 @@ f10_dumps prefixed "$T/f10_c" --contiguous
 f10_dumps nodir "$T/f10_none" --contiguous
 f10_dumps empty "$V/tests/replays" --contiguous
 [ "$d10" = 0 ] && ok "F10 check-dumps: $n10 invocations (complete, --quiet, --contiguous, mixed sizes, a hole both ways, outside, --addr, a prefixed side, no dir, no dumps), text and exit identical" || fail "F10 check-dumps: $d10 of $n10 differ"
+
+echo "== F11. the skills lock and the guide generator over the lineage's eight skills (H10) =="
+# The lineage's checker table travelled as the [skills] section of its
+# consumer config (GENERATED from that table, never transcribed); the lifted
+# checker over its eight skills must print what its own prints, and the
+# lifted generator must find its two committed guides CURRENT byte for byte.
+a11="$(cd "$V" && python3 tools/checkskills.py -v 2>&1; echo "exit=$?")"
+b11="$(cd "$V" && "$BBH_HOME/bin/bbh" check-skills --config "$CFG" -v 2>&1; echo "exit=$?")"
+if [ "$a11" = "$b11" ]; then ok "F11 check-skills -v: identical ($(printf '%s\n' "$a11" | grep -c 'rules defined') skills listed; $(printf '%s\n' "$a11" | grep -o 'ALL PASS ([^)]*)' | head -1))"
+else fail "F11 check-skills differs:"; printf '%s\n' "$a11" > "$T/a11.txt"; printf '%s\n' "$b11" > "$T/b11.txt"; diff "$T/a11.txt" "$T/b11.txt" | head -12 | sed 's/^/        /'; fi
+a11g="$(cd "$V" && python3 tools/gen_skill_guide.py --check 2>&1; echo "exit=$?")"
+b11g="$(cd "$V" && "$BBH_HOME/bin/bbh" skill-guide --config "$CFG" --check 2>&1; echo "exit=$?")"
+if [ "$a11g" = "$b11g" ] && printf '%s\n' "$b11g" | grep -q 'exit=0'; then ok "F11 skill-guide --check: identical, both guides CURRENT ($(printf '%s\n' "$b11g" | grep -c ' is current') guides)"
+else fail "F11 skill-guide differs or not current:"; printf '%s\n' "$a11g" > "$T/a11g.txt"; printf '%s\n' "$b11g" > "$T/b11g.txt"; diff "$T/a11g.txt" "$T/b11g.txt" | head -12 | sed 's/^/        /'; fi
 
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then
