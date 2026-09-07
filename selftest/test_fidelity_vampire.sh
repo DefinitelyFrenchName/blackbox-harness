@@ -43,7 +43,28 @@ set -eu
 BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
 PYTHONPATH="$BBH_HOME/lib/py"; export PYTHONPATH
 CFG="$BBH_HOME/example/consumers/bbh.vampire.toml"
+# THE LINEAGE'S LOCATION IS AN INPUT (ruled 2026-09-07, docs/conventions.md 6).
+# The consumer config's [project].root is ONE host's layout; a consumer's
+# gate that knows where its tree is passes it as BBH_FIDELITY_ROOT (absolute),
+# and this test derives a private copy of the config with that root — never
+# an environment override in the resolver, which would leak into every other
+# config this test opens (F1's fake repo, the example). Unset, the config's
+# own root applies, as before.
+if [ -n "${BBH_FIDELITY_ROOT:-}" ]; then
+    [ -d "$BBH_FIDELITY_ROOT/tests" ] || { echo "FAIL: BBH_FIDELITY_ROOT='$BBH_FIDELITY_ROOT' is not a consumer tree (no tests/)"; exit 1; }
+    _rt="$(cd "$BBH_FIDELITY_ROOT" && pwd)"
+    _cfgdir="$(mktemp -d)"
+    sed "s|^root = .*|root = \"$_rt\"   # from BBH_FIDELITY_ROOT|" "$CFG" > "$_cfgdir/bbh.vampire.toml"
+    grep -q "^root = \"$_rt\"" "$_cfgdir/bbh.vampire.toml" || { echo "FAIL: could not set root in the config copy"; exit 1; }
+    CFG="$_cfgdir/bbh.vampire.toml"
+fi
 V="$(python3 -m bbh.config "$CFG" root 2>/dev/null || true)"
+# A RE-BASELINE IS LOUD (ruled 2026-09-07, docs/conventions.md 10): every
+# verdict-text or classifier change that moved an expectation of this test
+# is a dated line of docs/rebaselines.md, and the newest is printed here so
+# no run of the fidelity gate is silent about the last time its baseline moved.
+_rb="$(grep -m1 '^- ' "$BBH_HOME/docs/rebaselines.md" 2>/dev/null || echo '- (none recorded)')"
+echo "LAST RE-BASELINE: ${_rb#- }"
 [ -n "$V" ] && [ -x "$V/tests/run_all_static.sh" ] || { echo "SKIP: the lineage tree is not at $V (fidelity needs it)"; exit 0; }
 rc=0
 ok()   { printf '  ok    %s\n' "$1"; }

@@ -49,7 +49,9 @@ FAKE_ROOT=. ../bin/bbh run-sweep --scope all   # the instrument-tier sweep: prer
 
 Then in your project: copy `bbh.toml.example` to `bbh.toml`, name your gates
 dir and registries, run `bbh run-static --config bbh.toml`. `docs/config.md`
-lists every key with its default and the bin it came from; `example/` is a
+lists every key with its default and the bin it came from; `docs/conventions.md`
+is the register of the harness's ruled defaults (where it lives, what travels,
+which drivers, the one classifier, the loud re-baseline rule); `example/` is a
 complete tiny consumer to copy from; `example/consumers/bbh.vampire.toml` is
 the config of the project this harness was extracted from.
 

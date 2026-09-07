@@ -2,7 +2,10 @@
 # (~/Developer/Vampire_Saved/VampireSaved), the harness's lineage. It lives
 # HERE, not in that tree, because that project's own harness stays as it is
 # (harness_scope.md §7.8); the one file it gains is its fidelity gate, which
-# points at this config through $BBH_HOME.
+# points at this config through $BBH_HOME — and passes its own location as
+# BBH_FIDELITY_ROOT, because [project].root below is ONE host's layout
+# (ruled 2026-09-07, docs/conventions.md 6); the fidelity test then derives
+# a private copy of this file with that absolute root.
 #
 # Every value below is the literal that project's runners carried. The
 # fidelity checks (harness_scope.md §5) diff this harness's verdict text
