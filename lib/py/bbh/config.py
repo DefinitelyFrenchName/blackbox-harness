@@ -92,7 +92,7 @@ DEFAULTS = {
         "scratch_lanes": ["mister"],                      # lanes whose --jobs slots get their own scratch
         "scratch_env": "JTSIM_SCRATCH",                   # the variable carrying it; "" = no scratch handling
         "scratch_default": "vampire-saved-jtsim",         # under ${TMPDIR:-/tmp} when the variable is unset
-        "prereq_cite": "[CPE-24]",                        # the citation in the prereq STOP text; "" = none
+        "prereq_cite": "[CPE-24]",                        # the citation in the prereq STOP text — the lineage's rule ID ("a measurement taken after a moved instrument is not evidence"); a consumer names its own or sets ""
     },
     "fingerprint": {
         "kind": "zip-members",                       # zip-members | file-sha1 | command

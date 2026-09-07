@@ -70,3 +70,15 @@ default — `README.md` states it.)
    `docs/rebaselines.md`, whose newest line every fidelity run prints at
    its head. The maintainer's word: *"such a change needs to be loud though,
    I wouldn't want it to be silent."*
+
+9. **The docs stay LEAN and anchored; the complete LOG lives in
+   `<name>_history.md` twins.** Ruled 2026-09-07 with decision 5 of the
+   skill's scope, in the maintainer's words: *"to avoid the logging part
+   becoming too big, the harness should use the anchored key system to
+   keep the docs lean and quick to search through and have `_HISTORY`
+   files with the complete LOG separately for completeness of
+   information."* A reference page carries one rule per paragraph, anchored
+   `**[BBH-N]**` where a skill distils it; its twin carries the dated
+   measurements and the incident narrative, no anchor, and is read as a
+   LOG by the skills lock (`docs/doctrine.md` §3). This page's twin is
+   `docs/conventions_history.md`.

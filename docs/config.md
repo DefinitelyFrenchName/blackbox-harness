@@ -138,7 +138,7 @@ lane, scope and cadence columns are these keys.
 | `scratch_lanes` | `["mister"]` | config | lanes whose `--jobs` slots each get their own scratch: slot 0 the base, slot N `<base>-slotN` |
 | `scratch_env` | `"JTSIM_SCRATCH"` | config | the variable carrying it; `""` disables |
 | `scratch_default` | `"vampire-saved-jtsim"` | config | under `${TMPDIR:-/tmp}` when the variable is unset |
-| `prereq_cite` | `"[CPE-24]"` | config | the citation in the prereq STOP text; `""` = none |
+| `prereq_cite` | `"[CPE-24]"` | config | the citation appended to the prereq STOP text ("a measurement taken after a moved instrument is not evidence"); the default is the lineage's rule ID for exactly that sentence, meaningful only there — a consumer names its own rule or sets `""` (the example does) |
 
 ## `[gate_header]` — THE HEADER CONTRACT and THE GATE INDEX (`bbh gate-index`, H5)
 

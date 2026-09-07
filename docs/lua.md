@@ -125,5 +125,5 @@ offset, the per-core RAM-dump offset); every gate that names an address of
 one game; the COLLECT mode's bucketing constants (now `COLLECT_STRIDE` /
 `COLLECT_OFFSET` / `COLLECT_PORTED` in the environment, the lineage's values
 documented in `tap_writes.lua`); the lineage's own `tests/lua/*.lua`, which
-stay as they are (`harness_scope.md` §7.8: that tree never consumes this
-harness).
+stay as they are (`docs/conventions.md` 6 — that tree never consumes this
+harness; its own scope document says the same).

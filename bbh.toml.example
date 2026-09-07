@@ -93,7 +93,7 @@ env_defaults = [["MAME_BIN", "mame-wide"]]
 scratch_lanes = ["mister"]
 scratch_env = "JTSIM_SCRATCH"
 scratch_default = "vampire-saved-jtsim"
-prereq_cite = "[CPE-24]"
+prereq_cite = "[CPE-24]"        # the lineage's rule ID for "a measurement after a moved instrument is not evidence"; yours, or ""
 
 # --- slice H5: expectation and gate hygiene (docs/hygiene.md; every value = the lineage's) ---
 [gate_header]
