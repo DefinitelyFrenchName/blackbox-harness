@@ -44,6 +44,11 @@ return {
 
     -- the input ports, in the order INPUT_OUT and the integrity assertion log them
     ports = { ":IN0", ":IN1", ":IN2" },
+    port_hex_digits = 4,        -- a port value's printed width (16-bit ports)
+
+    -- tap_writes.lua's COLLECT mode: the machine's sprite-list record — an
+    -- entry every `stride` bytes, the tile code `width` bytes wide at `offset`
+    collect = { stride = 8, offset = 4, width = 2 },
 
     -- INPUT_INJECT_TEST: replay.lua presses this side/token for one frame;
     -- replay_guard.lua clears `inject_bit` of ports[1] on its read
@@ -70,6 +75,7 @@ return {
         -- the game's OWN exception-code store (inp_guard.lua): every handler
         -- begins with a .w store of its code here; vector = code + store_to_vector
         exception_store  = 0xFF0000,
+        store_width      = 2,       -- the handlers store a .w
         store_to_vector  = 2,
         store_code_max   = 9,       -- codes above this are not exception codes (boot RAM tests)
         arm_frame        = 300,     -- ignore stores before this frame (boot-time RAM tests)

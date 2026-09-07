@@ -69,8 +69,9 @@ HERMETIC="$(bbh_cfg suite.hermetic_unset "")"
 HASH_CMD="$(bbh_cfg suite.hash_cmd)"
 BBH_MASK_DEFAULT="$(bbh_cfg suite.mask_default)"; export BBH_MASK_DEFAULT
 # the machine profile the MAME drivers run under (H6): the caller's
-# BBH_PROFILE wins, else [machine].profile
-[ -n "${BBH_PROFILE:-}" ] || { BBH_PROFILE="$(bbh_cfg machine.profile)"; export BBH_PROFILE; }
+# BBH_PROFILE wins, else [machine].profile; neither = none exported (the fake
+# driver needs none; a MAME driver REFUSES to run without one)
+if [ -z "${BBH_PROFILE:-}" ]; then _mp="$(bbh_cfg machine.profile "")"; [ -z "$_mp" ] || { BBH_PROFILE="$_mp"; export BBH_PROFILE; }; fi
 . "$BBH_HOME/lib/sh/masked_compare.sh"
 
 # The reference-input variable is demanded, and made ABSOLUTE (the lineage,

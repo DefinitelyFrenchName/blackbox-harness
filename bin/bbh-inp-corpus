@@ -48,12 +48,12 @@ SET="$(bbh_cfg inp.set)"
 BUILD="${BUILD_ARG:-${BUILD:-$(bbh_cfg inp.build)}}"
 SUFFIX="$(bbh_cfg inp.rompath_suffix "")"
 INPUT_ENV="$(bbh_cfg suite.input_env)"
-PROFILE="$(bbh_cfg inp.profile)"
+PROFILE="$(bbh_cfg inp.profile "")"; [ -n "$PROFILE" ] || PROFILE="$(bbh_cfg machine.profile "")"
 MAME_DEFAULT="$(bbh_cfg inp.mame_bin_default "")"
 MAXF="${MAX_FRAMES:-$(bbh_cfg inp.max_frames)}"
 STOPA="$(bbh_cfg inp.stop_after)"
 ONLY="${ONLY_ARG:-${ONLY:-}}"
-[ -n "${BBH_PROFILE:-}" ] || { BBH_PROFILE="$PROFILE"; export BBH_PROFILE; }
+[ -n "${BBH_PROFILE:-}" ] || { [ -n "$PROFILE" ] || { echo "FAIL: no machine profile — set [inp].profile, [machine].profile or BBH_PROFILE"; exit 1; }; BBH_PROFILE="$PROFILE"; export BBH_PROFILE; }
 
 cd "$BBH_ROOT"
 eval "INPUT=\${$INPUT_ENV:-}"

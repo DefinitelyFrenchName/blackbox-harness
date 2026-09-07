@@ -18,9 +18,10 @@
 --                  (caller attribution for engine-internal writer PCs)
 --   env COLLECT    "lo,hi" hex: COLLECT mode — instead of per-write lines,
 --                  accumulate the SET of values written in-window at entry
---                  offsets where (offset % COLLECT_STRIDE) == COLLECT_OFFSET
---                  (defaults 8 / 4, the lineage's OBJ tile-code slot) whose
---                  value falls in [lo,hi]; dumped as CODE lines at END,
+--                  offsets where (offset % stride) == offset — the profile's
+--                  `collect` record layout, env COLLECT_STRIDE / COLLECT_OFFSET /
+--                  COLLECT_WIDTH overriding — whose value falls in [lo,hi];
+--                  dumped as CODE lines at END,
 --                  bucketed "vanilla" / "ported" by COLLECT_PORTED
 --                  ("lo-hi,lo-hi" hex PC ranges; the lineage's patch holes).
 --
@@ -56,8 +57,12 @@ do
         collect_lo, collect_hi = tonumber(a, 16), tonumber(b, 16)
     end
 end
-local COLLECT_STRIDE = tonumber(os.getenv("COLLECT_STRIDE") or "") or 8
-local COLLECT_OFFSET = tonumber(os.getenv("COLLECT_OFFSET") or "") or 4
+local CL = P.collect or {}
+local COLLECT_STRIDE = tonumber(os.getenv("COLLECT_STRIDE") or "") or CL.stride or 8
+local COLLECT_OFFSET = tonumber(os.getenv("COLLECT_OFFSET") or "") or CL.offset or 4
+local COLLECT_WIDTH = tonumber(os.getenv("COLLECT_WIDTH") or "") or CL.width or 2
+local COLLECT_MASK = (1 << (8 * COLLECT_WIDTH)) - 1
+local PCFMT = "%0" .. #string.format("%x", (P.crash and P.crash.pc_mask) or 0xFFFFFF) .. "x"
 local ported_ranges = {}
 for a, b in (os.getenv("COLLECT_PORTED") or ""):gmatch("(%x+)%-(%x+)") do
     ported_ranges[#ported_ranges + 1] = { tonumber(a, 16), tonumber(b, 16) }
@@ -100,11 +105,11 @@ local function install_tap()
         "tapw", function(offset, data, mask)
             if collect_lo then
                 if frame >= wa and frame <= wb and offset % COLLECT_STRIDE == COLLECT_OFFSET then
-                    local v = data & 0xFFFF
-                    if mask & 0xFFFF == 0 then v = (data >> 16) & 0xFFFF end
+                    local v = data & COLLECT_MASK
+                    if mask & COLLECT_MASK == 0 then v = (data >> (8 * COLLECT_WIDTH)) & COLLECT_MASK end
                     if v >= collect_lo and v <= collect_hi then
                         local pc = cpu.state["CURPC"].value
-                        local key = v + (is_ported(pc) and 0x10000 or 0)
+                        local key = v + (is_ported(pc) and (COLLECT_MASK + 1) or 0)
                         collected[key] = (collected[key] or 0) + 1
                     end
                 end
@@ -141,7 +146,7 @@ local function install_tap()
                     end)
                     extra = ok and res or (" stackerr " .. tostring(res))
                 end
-                f:write(string.format("frame %d PC %06x off %06x data %08x mask %08x%s\n",
+                f:write(string.format("frame %d PC " .. PCFMT .. " off " .. PCFMT .. " data %08x mask %08x%s\n",
                                       frame, pc, offset, data, mask, extra))
             end
         end)
@@ -186,15 +191,15 @@ emu.register_frame_done(function()
             for v in pairs(collected) do ks[#ks + 1] = v end
             table.sort(ks)
             for _, v in ipairs(ks) do
-                f:write(string.format("CODE %04x %s %d\n", v & 0xFFFF,
-                        (v >= 0x10000) and "ported" or "vanilla", collected[v]))
+                f:write(string.format("CODE %0" .. (COLLECT_WIDTH * 2) .. "x %s %d\n", v & COLLECT_MASK,
+                        (v > COLLECT_MASK) and "ported" or "vanilla", collected[v]))
             end
         end
         local pcs = {}
         for pc, n in pairs(by_pc) do pcs[#pcs + 1] = { pc, n } end
         table.sort(pcs, function(x, y) return x[2] > y[2] end)
         for _, e in ipairs(pcs) do
-            f:write(string.format("PCHIST %06x %d\n", e[1], e[2]))
+            f:write(string.format("PCHIST " .. PCFMT .. " %d\n", e[1], e[2]))
         end
         f:close()
         manager.machine:exit()

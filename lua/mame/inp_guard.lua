@@ -29,6 +29,8 @@
 --                    trace at this frame, stop at the first crash. -debug
 --                    perturbs timeslicing — confirm the crash frame matches
 --                    the cheap-mode capture before trusting the trace.
+-- env ALIVE_EVERY    frames between ALIVE heartbeat lines (default 600)
+-- env GUARD_STACK_DEPTH / GUARD_STACK_SHOWN   the STACK sketch (defaults 64 / 16)
 -- env WATCH          "lo-hi[,lo-hi]" hex RAM ranges: every WRITE is logged
 --                    with the writing PC into a ring (last WATCH_KEEP,
 --                    default 60), flushed at each crash as "W <frame> PC <pc> <addr> <data>".
@@ -41,6 +43,10 @@ local C = profile.require_crash(P)
 assert(C.exception_store, "profile " .. P.path .. ": crash.exception_store is required by inp_guard.lua")
 local STORE_TO_VEC = C.store_to_vector or 0
 local CODE_MAX = C.store_code_max or 0xFFFF
+local STORE_MASK = (1 << (8 * (C.store_width or 2))) - 1
+local ALIVE_EVERY = tonumber(os.getenv("ALIVE_EVERY") or "") or 600
+local STACK_DEPTH = tonumber(os.getenv("GUARD_STACK_DEPTH") or "") or 64
+local STACK_SHOWN = tonumber(os.getenv("GUARD_STACK_SHOWN") or "") or 16
 
 local out_path = os.getenv("CHECKSUM_OUT") or "inp_guard.log"
 local arm = tonumber(os.getenv("ARM_FRAME") or "") or C.arm_frame or 0
@@ -59,6 +65,7 @@ assert(cpu, "no CPU device " .. P.cpu)
 local program = cpu.spaces[P.space]
 local RAM_LO, RAM_HI = P.ram.lo, P.ram.hi
 local PC_MASK = C.pc_mask
+local PCFMT = "%0" .. #string.format("%x", PC_MASK) .. "x"
 local f = assert(io.open(out_path, "wb"))
 local frame, crashes, filtered, stop_at = 0, 0, 0, nil
 
@@ -92,10 +99,10 @@ local function on_store(code)
         fault_pc = program:read_u32(sp + C.pc_at_sp.other)
     end
     local okpc, curpc = pcall(function() return st["CURPC"].value & PC_MASK end)
-    f:write(string.format("CRASH %d vec%d PC %06x SP %08x ADDR %s HANDLER %s\n",
+    f:write(string.format("CRASH %d vec%d PC " .. PCFMT .. " SP %08x ADDR %s HANDLER %s\n",
         frame, vec, fault_pc & PC_MASK, sp,
         fault_addr and string.format("%08x", fault_addr) or "-",
-        okpc and string.format("%06x", curpc) or "?"))
+        okpc and string.format(PCFMT, curpc) or "?"))
     local regs = {}
     for _, rn in ipairs(C.regs) do
         local ok, v = pcall(function() return st[rn].value end)
@@ -103,14 +110,14 @@ local function on_store(code)
     end
     f:write("REGS " .. table.concat(regs, " ") .. "\n")
     local shown = 0
-    for off = 0, 63 * 4, 4 do
+    for off = 0, (STACK_DEPTH - 1) * 4, 4 do
         local a = sp + off
         if a >= C.stack_top then break end
         local v = program:read_u32(a)
         if rom_plausible(v) then
             f:write(string.format("STACK %08x %08x\n", a, v))
             shown = shown + 1
-            if shown >= 16 then break end
+            if shown >= STACK_SHOWN then break end
         end
     end
     if ring_n > 0 then
@@ -134,8 +141,8 @@ end
 -- drops taps silently; without the notifier a capture goes blind).
 local tap
 local function on_write(offset, data, mask)
-    -- a .w store arrives as one 16-bit access; the code is small
-    local code = data & 0xFFFF
+    -- the store arrives as one access of the profile's width; the code is small
+    local code = data & STORE_MASK
     -- a soft-reset path's abbreviated RAM test also writes small values here
     -- with SP outside the RAM window (the lineage measured SP=0); a real
     -- handler store has the exception frame on the RAM stack.
@@ -148,13 +155,13 @@ local function on_write(offset, data, mask)
 end
 local wtaps = {}
 local function install()
-    tap = program:install_write_tap(C.exception_store, C.exception_store + 1, "inp_guard", on_write)
+    tap = program:install_write_tap(C.exception_store, C.exception_store + (C.store_width or 2) - 1, "inp_guard", on_write)
     for lo, hi in (os.getenv("WATCH") or ""):gmatch("(%x+)%-(%x+)") do
         lo, hi = tonumber(lo, 16), tonumber(hi, 16)
         wtaps[#wtaps + 1] = program:install_write_tap(lo, hi, "inp_watch_" .. lo, function(offset, data, mask)
             local ok, pc = pcall(function() return cpu.state["CURPC"].value & PC_MASK end)
             ring_n = ring_n + 1
-            ring[ring_n] = string.format("W %d PC %06x %06x %08x mask %08x\n", frame, ok and pc or 0, offset, data, mask)
+            ring[ring_n] = string.format("W %d PC " .. PCFMT .. " " .. PCFMT .. " %08x mask %08x\n", frame, ok and pc or 0, offset, data, mask)
             if ring_n > watch_keep * 2 then
                 local keep = {}
                 for i = ring_n - watch_keep + 1, ring_n do keep[#keep + 1] = ring[i] end
@@ -183,7 +190,7 @@ emu.register_frame_done(function()
         tracing = true
         f:write(string.format("TRACE %d on -> %s\n", frame, trace_path))
     end
-    if frame % 600 == 0 then
+    if frame % ALIVE_EVERY == 0 then
         local parts = { string.format("ALIVE %d", frame) }
         for _, a in ipairs(ALIVE) do
             parts[#parts + 1] = string.format("%s=%0" .. (a[3] * 2) .. "x", a[1], read_width(a[2], a[3]))

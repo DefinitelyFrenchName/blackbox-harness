@@ -56,6 +56,10 @@ hermetic_unset = ["POKES", "DUMPS", "SNAP_FRAMES", "TAIL_FRAMES", "VIDEO_OUT",
                   "INPUT_OUT", "INPUT_INJECT_TEST", "NO_INPUT_CHECK"]
 hash_cmd = "shasum"
 
+# [machine] is deliberately ABSENT: the fake driver runs no Lua and needs no
+# board profile. A consumer with a MAME driver names one here (docs/lua.md);
+# there is no default — a board is never implied.
+
 [fingerprint]
 kind = "zip-members"
 program_member_regex = '\.(0[1-9])$'      # fake.01, fake.02 are the program; fake.gfx / fake.key are not

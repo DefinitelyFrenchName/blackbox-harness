@@ -99,6 +99,7 @@ for spec in (os.getenv("POKES") or ""):gmatch("[^;]+") do
     if fr then pokes[#pokes + 1] = { tonumber(fr), tonumber(addr, 16), hexs } end
 end
 
+local PCFMT = "%0" .. #string.format("%x", (P.crash and P.crash.pc_mask) or 0xFFFFFF) .. "x"
 local TRACE_REGS = (P.crash and P.crash.trace_regs)
     or { "D0", "D1", "A0", "A1", "A2", "A3", "A4", "A6" }
 
@@ -143,7 +144,7 @@ end)
 emu.register_periodic(function()
     if debugger.execution_state == "stop" then
         local st = cpu.state
-        local parts = { string.format("frame %d PC %06x", frame, st["CURPC"].value) }
+        local parts = { string.format("frame %d PC " .. PCFMT, frame, st["CURPC"].value) }
         for _, rn in ipairs(TRACE_REGS) do
             parts[#parts + 1] = string.format("%s %08x", rn, st[rn].value)
         end

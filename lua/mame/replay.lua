@@ -168,6 +168,7 @@ end
 -- emulated controls. On any divergence, diff the input logs first: if they
 -- differ, the cause is external input and the investigation is over.
 local PORT_TAGS = P.ports
+local PORTFMT = "%0" .. (P.port_hex_digits or 4) .. "x"
 local input_out = os.getenv("INPUT_OUT")
 local inf, in_ports
 if input_out then
@@ -269,7 +270,7 @@ emu.register_frame_done(function()
     end
     if inf then
         local vals = { tostring(frame) }
-        for _, p in ipairs(in_ports) do vals[#vals + 1] = string.format("%04x", p:read()) end
+        for _, p in ipairs(in_ports) do vals[#vals + 1] = string.format(PORTFMT, p:read()) end
         inf:write(table.concat(vals, " ") .. "\n")
     end
     if INTEGRITY then
@@ -284,9 +285,9 @@ emu.register_frame_done(function()
                 if got ~= idle then
                     violations = violations + 1
                     first_violation = first_violation or string.format(
-                        "frame 1 port %s: controlled bits %04x are already %s "..
+                        "frame 1 port %s: controlled bits " .. PORTFMT .. " are already %s "..
                         "(= HELD before the replay started; stuck host key or "..
-                        "modifier?) read %04x, idle %04x",
+                        "modifier?) read " .. PORTFMT .. ", idle " .. PORTFMT,
                         tag, (got ~ idle) & controlled[tag],
                         P.active_low and "LOW" or "HIGH", got, idle)
                 end
@@ -299,7 +300,7 @@ emu.register_frame_done(function()
                 if exp[tag] ~= got then
                     violations = violations + 1
                     first_violation = first_violation or
-                        string.format("frame %d port %s expected %04x got %04x (mask %04x)",
+                        string.format("frame %d port %s expected " .. PORTFMT .. " got " .. PORTFMT .. " (mask " .. PORTFMT .. ")",
                                       frame, tag, exp[tag], got, controlled[tag])
                 end
             end

@@ -34,6 +34,9 @@ a script reads is in it) and the loader's required list in step.
 | `crash.exception_store`, `store_to_vector`, `store_code_max`, `arm_frame` | inp_guard | the machine's OWN exception-code store (every handler begins with a store there), `vector = code + store_to_vector`, the filters |
 | `crash.match`, `crash.alive` | guard, inp_guard | `GUARD_MATCH`'s in-match flag; the recording guard's ALIVE line |
 | `crash.probe_regs`, `trace_regs`, `tap_regs` | guard, taps | optional register lists (68000-shaped defaults) |
+| `port_hex_digits` | replay, guard | how wide a port value prints (INPUT_OUT, the violation lines); PC widths derive from `crash.pc_mask` |
+| `collect = {stride, offset, width}` | tap_writes | the COLLECT mode's sprite-list record layout (env `COLLECT_*` overrides) |
+| `crash.store_width` | inp_guard | the exception store's width — the tap range and the code mask follow it |
 
 ## 2. The grammar (`lua/mame/rpl_parse.lua` == `lib/py/bbh/rpl.py`)
 
@@ -86,7 +89,36 @@ corpus gate's liveness predicate rejects the rest, and the gate runs its
 own controls on that predicate every time (`selftest/test_inp_corpus.sh`
 exercises every verdict on a stub emulator).
 
-## 5. What stayed with the lineage
+## 5. The defaults census — every literal, and which bin it is in
+
+Asked by the lineage's maintainer after the code-window finding (§1): does
+the Lua layer carry other constants that are really per-project? It did.
+Every literal in `lua/mame/` is now in one of three bins, and this table is
+the register (H6b; `selftest/test_profiles.sh` keeps the profile bin
+complete against what the scripts read):
+
+| literal | bin | where it lives now |
+|---|---|---|
+| the code window (`0x400000` / `0x600000`) | **board** | `crash.code` — `cps2` vs `cps2w` (§1) |
+| the exception store's width (the guard read `data & 0xFFFF`) | **board** | `crash.store_width` (the tap range and the code mask follow it) |
+| the COLLECT record layout (stride 8, tile code 2 bytes at offset 4 — the CPS-2 sprite entry) | **board** | `collect = { stride, offset, width }`; env `COLLECT_STRIDE` / `COLLECT_OFFSET` / `COLLECT_WIDTH` override |
+| printed widths (`%04x` ports, `%06x` PCs and offsets) | **board** | `port_hex_digits`; PC digits derived from `crash.pc_mask` |
+| the STACK sketch: 64 longs walked, 16 listed | **policy** | env `GUARD_STACK_DEPTH` / `GUARD_STACK_SHOWN` (both guards) |
+| PCWEEDS suppressed after 10 lines | **policy** | env `GUARD_WEEDS_MAX` |
+| GUARD_BREAK stops before frame 100 are "the boot pass" | **policy** | env `GUARD_BREAK_AFTER` |
+| the ALIVE heartbeat every 600 frames | **policy** | env `ALIVE_EVERY` |
+| `TAIL_FRAMES` 120, `GUARD_PROBE_MAX` 400, `MAX_FRAMES` 200000, `STOP_AFTER` 600, `WATCH_KEEP` 60, `FRAMES` 3600 | **policy** (the lineage's values, stated in each header) | env, as before; `read_tap.lua`'s `FRAMES` default was 5450 — one lineage replay's length — and is 3600 like the other taps |
+| `[machine].profile` | **config, NO default** | a consumer names a board or omits the section; nothing is exported and a MAME driver refuses to run without `BBH_PROFILE`. The example omits it (its fake driver runs no Lua) |
+| `[inp].*` (`vsavjw`, a build dir, the pinned MAME) | **config, the lineage's literals** | documented as such in `docs/config.md`; `[inp].profile` `""` falls back to `[machine].profile` |
+| a maximum replay length | **none on the MAME side** | the lineage's FBNeo frontend caps at 10,000,000 frames in its C patch; a cap here would be a `[suite]` policy key, not a profile key |
+
+The rule the table encodes: a BOARD fact goes in the profile (the TEMPLATE
+carries it, the census test demands it), a POLICY value is an environment
+variable whose default is stated in the script's header, and a CONFIG
+value is the consumer's — with no silent default where the value names a
+machine.
+
+## 6. What stayed with the lineage
 
 `run_sim_jtcps2.sh` (the Verilator driver: jtframe-shaped, the download
 offset, the per-core RAM-dump offset); every gate that names an address of

@@ -20,6 +20,11 @@ return {
     },
     -- REQUIRED — the ports the integrity assertion reads and INPUT_OUT logs, in log order
     ports = { ":IN0", ":IN1", ":IN2" },
+    port_hex_digits = 4,          -- how wide a port value prints (INPUT_OUT, the violation lines); 4 = 16-bit ports
+
+    -- tap_writes.lua's COLLECT mode: the sprite-list record layout (an entry every
+    -- `stride` bytes, the tile code `width` bytes wide at `offset`); env COLLECT_* overrides
+    collect = { stride = 8, offset = 4, width = 2 },
 
     -- INPUT_INJECT_TEST: the must-fire control of the integrity assertion
     inject     = { "p1", "U" },   -- replay.lua presses this side/token for one frame
@@ -39,7 +44,8 @@ return {
         regs          = { "D0", "A0" },           -- registers on the REGS line, in order (names from cpu.state)
         sp            = { "A7", "SP" },           -- the stack pointer register, first name that exists
         -- inp_guard.lua: the game's own exception-code store, if it keeps one
-        exception_store = 0xFF0000,               -- a .w store here begins every handler
+        exception_store = 0xFF0000,               -- a store here begins every handler
+        store_width     = 2,                      -- the store's width in bytes (the code is the low `store_width` bytes of the access)
         store_to_vector = 2,                      -- vector = stored code + this
         store_code_max  = 9,                      -- larger stored values are not exception codes
         arm_frame       = 300,                    -- ARM_FRAME default: ignore stores before it

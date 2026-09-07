@@ -161,14 +161,14 @@ integrity_hint = ["A glob-based comparison would have silently used a DIFFERENT"
 
 # --- slice H6: the MAME Lua layer and the recording corpus (docs/config.md [machine] [inp], docs/lua.md) ---
 [machine]
-profile = "cps2"                                    # lua/mame/profiles/<name>.lua, or a path; BBH_PROFILE in the env wins
+profile = "cps2"                                    # lua/mame/profiles/<name>.lua, or a path; BBH_PROFILE in the env wins. NO DEFAULT: omit the section when no driver needs a board
 
 [inp]
 corpus_dir = "tests/inp"                            # <corpus_dir>/<name>/{<name>.inp, nvram/, NOTE[, DEFECT]}
 set = "vsavjw"                                      # the set the recordings were played on
 build = "build/m3b_merged23"                        # the build under test (env BUILD / --build override)
 rompath_suffix = "/rompath"                         # + the build dir = the search path's first component
-profile = "cps2w"                                   # the playback guard's machine profile
+profile = "cps2w"                                   # the playback guard's machine profile; "" = [machine].profile
 mame_bin_default = "$HOME/.cache/vampire-saved/mame/cps2"   # MAME_BIN when the caller set none
 max_frames = 6000                                   # the playback cap
 stop_after = 5                                      # frames after the first crash

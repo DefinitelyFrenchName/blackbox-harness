@@ -236,7 +236,7 @@ the lineage; here they are the consumer's.
 
 | key | default | origin | meaning |
 |---|---|---|---|
-| `profile` | `"cps2"` | config | a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; the drivers REFUSE to run without it. The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
+| `profile` | **none** | config | a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; with neither, nothing is exported and a MAME driver REFUSES to run. There is deliberately no default: a board is never implied (the example omits the section — its fake driver needs none). The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
 
 ## `[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`, H6)
 
@@ -252,7 +252,7 @@ cannot rot).
 | `set` | `"vsavjw"` | config | the set the recordings were played on; `<build><rompath_suffix>/<set>.zip` must exist |
 | `build` | `"build/m3b_merged23"` | config | the build dir under test (env `BUILD` / `--build` override) |
 | `rompath_suffix` | `"/rompath"` | config | + the build dir = the first component of the search path (the reference input, `[suite].input_env`, is the second) |
-| `profile` | `"cps2w"` | config | the machine profile for the playback guard (`BBH_PROFILE` in the env wins) |
+| `profile` | `""` | config | the playback guard's machine profile; `""` = `[machine].profile`; `BBH_PROFILE` in the env wins; none anywhere is a FAIL naming the three |
 | `mame_bin_default` | `"$HOME/.cache/vampire-saved/mame/cps2"` | config | `MAME_BIN` when the caller set none (`$HOME` substituted) |
 | `max_frames` | `6000` | config (policy) | the playback cap (`MAX_FRAMES` overrides) |
 | `stop_after` | `5` | config (policy) | frames to keep running after the first crash |

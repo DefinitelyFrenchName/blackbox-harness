@@ -191,8 +191,10 @@ DEFAULTS = {
                            "frame set. Do not compare this run — see docs/platform/gotchas.md."],   # under a DUMP INTEGRITY FAILED
     },
     "machine": {
-        # H6 — the MAME Lua layer: which machine profile the drivers run under
-        "profile": "cps2",                            # a name under lua/mame/profiles/ or a path; BBH_PROFILE in the env wins
+        # H6 — the MAME Lua layer: which machine profile the drivers run under.
+        # NO DEFAULT for `profile` (H6b): a board is never implied — a consumer
+        # names one, or the section is absent and BBH_PROFILE comes from the
+        # caller (drivers refuse to run without one).
     },
     "inp": {
         # H6 — the recording corpus (bbh inp-corpus / bbh inp-play); the lineage's literals
@@ -200,7 +202,7 @@ DEFAULTS = {
         "set": "vsavjw",                              # the set the recordings were played on
         "build": "build/m3b_merged23",                # the build dir under test (env BUILD / --build override)
         "rompath_suffix": "/rompath",                 # + the build dir = the search path's first component
-        "profile": "cps2w",                           # the machine profile for the playback guard
+        "profile": "",                               # the playback guard's profile; "" = [machine].profile, else BBH_PROFILE from the caller
         "mame_bin_default": "$HOME/.cache/vampire-saved/mame/cps2",   # MAME_BIN when the caller set none
         "max_frames": 6000,                           # MAX_FRAMES: the playback cap
         "stop_after": 5,                              # STOP_AFTER: frames after the first crash

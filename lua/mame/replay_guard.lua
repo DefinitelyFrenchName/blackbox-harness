@@ -40,6 +40,10 @@
 --       [GUARD_PROBE_MAX=n] [GUARD_PROBE_HIST=n] [GUARD_PROBE_TRACE=<path>]
 --                     conditional LOGGING breakpoint — PROBE lines, run continues
 --   env GUARD_FORCE="<hexaddr>:<minframe>:REG=hex,..."  one-shot register forcing
+--   env GUARD_STACK_DEPTH=n  longs walked up from SP for the STACK sketch (default 64)
+--   env GUARD_STACK_SHOWN=n  ROM-plausible longs listed at most (default 16)
+--   env GUARD_WEEDS_MAX=n    PCWEEDS lines before suppression (default 10)
+--   env GUARD_BREAK_AFTER=n  GUARD_BREAK stops before this frame are the boot pass, resumed (default 100)
 --
 -- Log grammar (grep-able): normal "<frame> <fnv1a64>" lines, then any of
 --   CRASH <frame> vec<n> PC <pc6> SP <sp8> ADDR <addr8>|-
@@ -115,6 +119,13 @@ assert(program, "no address space " .. P.space .. " on " .. P.cpu)
 local debugger = machine.debugger  -- nil unless -debug
 local RAM_LO, RAM_HI = P.ram.lo, P.ram.hi
 local PC_MASK = C.pc_mask
+local PCFMT = "%0" .. #string.format("%x", PC_MASK) .. "x"   -- 24-bit -> %06x
+local PORTFMT = "%0" .. (P.port_hex_digits or 4) .. "x"
+-- instrument POLICY, not board facts: env-overridable, defaults stated in the header
+local STACK_DEPTH = tonumber(os.getenv("GUARD_STACK_DEPTH") or "") or 64
+local STACK_SHOWN = tonumber(os.getenv("GUARD_STACK_SHOWN") or "") or 16
+local WEEDS_MAX = tonumber(os.getenv("GUARD_WEEDS_MAX") or "") or 10
+local BREAK_AFTER = tonumber(os.getenv("GUARD_BREAK_AFTER") or "") or 100
 
 local function sp_of(st)
     for _, n in ipairs(C.sp) do
@@ -198,7 +209,7 @@ local function on_crash(vec)
     else
         fault_pc = program:read_u32(sp + C.pc_at_sp.other)
     end
-    f:write(string.format("CRASH %d vec%d PC %06x SP %08x ADDR %s\n",
+    f:write(string.format("CRASH %d vec%d PC " .. PCFMT .. " SP %08x ADDR %s\n",
         frame, vec, fault_pc & PC_MASK, sp,
         fault_addr and string.format("%08x", fault_addr) or "-"))
     local regs = {}
@@ -209,14 +220,14 @@ local function on_crash(vec)
     f:write("REGS " .. table.concat(regs, " ") .. "\n")
     -- stack sketch: ROM-plausible longs walking up from SP
     local shown = 0
-    for off = 0, 63 * 4, 4 do
+    for off = 0, (STACK_DEPTH - 1) * 4, 4 do
         local a = sp + off
         if a >= C.stack_top then break end
         local v = program:read_u32(a)
         if rom_plausible(v) then
             f:write(string.format("STACK %08x %08x\n", a, v))
             shown = shown + 1
-            if shown >= 16 then break end
+            if shown >= STACK_SHOWN then break end
         end
     end
     -- crash-time instruction history (opt-in via GUARD_PROBE_HIST, the same
@@ -347,7 +358,7 @@ if debugger then
                 local memtxt = ""
                 if probe_mem_reg and st[probe_mem_reg] then
                     local at = (st[probe_mem_reg].value + probe_mem_off) & PC_MASK
-                    memtxt = string.format(" MEM[%s+%x=%06x]=%02x",
+                    memtxt = string.format(" MEM[%s+%x=" .. PCFMT .. "]=%02x",
                                            probe_mem_reg, probe_mem_off, at,
                                            program:read_u8(at))
                 end
@@ -388,7 +399,7 @@ if debugger then
                 end
                 debugger.execution_state = "run"
             elseif break_addr and pc == break_addr then
-                if frame > 100 then  -- ignore the boot-time pass
+                if frame > BREAK_AFTER then  -- ignore the boot-time pass
                     on_crash(99)
                 else
                     debugger.execution_state = "run"
@@ -501,7 +512,7 @@ emu.register_frame_done(function()
         debugger:command("trace off,0")
     end
     if pclog_a and frame >= pclog_a and frame <= pclog_b then
-        f:write(string.format("PC %d %06x\n", frame,
+        f:write(string.format("PC %d " .. PCFMT .. "\n", frame,
                               cpu.state["CURPC"].value & PC_MASK))
     end
 
@@ -512,10 +523,10 @@ emu.register_frame_done(function()
         for _, r in ipairs(code_ranges) do
             if pc >= r[1] and pc < r[2] then ok = true; break end
         end
-        if not ok and weeds_logged < 10 then
-            f:write(string.format("PCWEEDS %d %06x\n", frame, pc))
+        if not ok and weeds_logged < WEEDS_MAX then
+            f:write(string.format("PCWEEDS %d " .. PCFMT .. "\n", frame, pc))
             weeds_logged = weeds_logged + 1
-            if weeds_logged == 10 then f:write("PCWEEDS suppressed\n") end
+            if weeds_logged == WEEDS_MAX then f:write("PCWEEDS suppressed\n") end
         end
     end
     if match_a and frame >= match_a and frame <= match_b then
@@ -554,7 +565,7 @@ emu.register_frame_done(function()
                 violations = violations + 1
                 if not first_violation then
                     first_violation = string.format(
-                        "INPUT-VIOLATION %d %s live %04x expected %04x",
+                        "INPUT-VIOLATION %d %s live " .. PORTFMT .. " expected " .. PORTFMT,
                         frame, tag, live, exp[tag] & controlled[tag])
                     f:write(first_violation .. "\n")
                 end

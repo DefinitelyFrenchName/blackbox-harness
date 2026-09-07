@@ -30,13 +30,14 @@ local rpl = dofile(HERE .. "/rpl_parse.lua")
 local P = profile.load()
 
 local out_path   = os.getenv("TRACE_OUT") or "read_tap.txt"
-local max_frames = tonumber(os.getenv("FRAMES") or "") or 5450
+local max_frames = tonumber(os.getenv("FRAMES") or "") or 3600   -- as the other taps (the lineage's 5450 was one replay's length)
 local wa, wb = (os.getenv("WINDOW") or "0,99999999"):match("^(%d+),(%d+)$")
 wa, wb = tonumber(wa), tonumber(wb)
 local spec = assert(os.getenv("RTAP"), "set RTAP=hexaddr,declen")
 local a_s, l_s = spec:match("^(%x+),(%d+)$")
 local base, len = tonumber(a_s, 16), tonumber(l_s)
 local PC_MASK = (P.crash and P.crash.pc_mask) or 0xFFFFFF
+local PCFMT = "%0" .. #string.format("%x", PC_MASK) .. "x"
 
 local machine = manager.machine
 local cpu     = machine.devices[P.cpu]
@@ -56,7 +57,7 @@ local function install()
             hits = hits + 1
             local pc = cpu.state["CURPC"].value & PC_MASK
             pchist[pc] = (pchist[pc] or 0) + 1
-            f:write(string.format("R %d PC %06x off %06x data %08x mask %08x\n",
+            f:write(string.format("R %d PC " .. PCFMT .. " off " .. PCFMT .. " data %08x mask %08x\n",
                     frame, pc, offset, data, mask))
         end
     end)
@@ -64,7 +65,7 @@ local function install()
     wtap = space:install_write_tap(base, base + len - 1, "wt", function(offset, data, mask)
         hits = hits + 1
         local pc = cpu.state["CURPC"].value & PC_MASK
-        f:write(string.format("W %d PC %06x off %06x data %08x mask %08x\n",
+        f:write(string.format("W %d PC " .. PCFMT .. " off " .. PCFMT .. " data %08x mask %08x\n",
                 frame, pc, offset, data, mask))
     end)
     installing = false
@@ -118,7 +119,7 @@ emu.register_frame_done(function()
         for pc, n in pairs(pchist) do rows[#rows + 1] = { pc, n } end
         table.sort(rows, function(x, y) return x[2] > y[2] end)
         for _, r in ipairs(rows) do
-            f:write(string.format("PCHIST %06x %d\n", r[1], r[2]))
+            f:write(string.format("PCHIST " .. PCFMT .. " %d\n", r[1], r[2]))
         end
         f:close()
         manager.machine:exit()
