@@ -89,6 +89,9 @@ exp="$(cat "$V/tests/expected/vsavj/02_demitri_vs_cpu.sha1")"; got="$(shasum "$T
 [ "$got" = "$exp" ] && ok "…and equal to the lineage's FROZEN vsavj expectation ($exp)" || fail "frozen sha1 $exp, harness got $got"
 
 echo "== F8e. the guard, authoritative mode, on the positive control (a planted ILLEGAL) =="
+# The lineage guard's code window is the WIDE 6 MB one since 14z-138 (its two
+# guards had disagreed), so this comparison runs under the cps2w profile.
+export BBH_PROFILE=cps2w
 cat > "$T/pick.rpl" <<'EOF'
 300-305 sys=C1
 800-803 sys=S1
@@ -114,6 +117,7 @@ grep -E '^(CRASH|REGS|STACK|END-CRASH) ' "$T/ca.log" > "$T/ca.crash"; grep -E '^
 cmp -s "$T/ca.log" "$T/cb.log" && ok "…the whole -debug log too (deterministic on the same binary)" || fail "-debug logs differ"
 [ -f "$T/csb/../cb.log" ] || true
 
+export BBH_PROFILE=cps2
 echo "== F8f. the .rpl grammar under MAME's interpreter =="
 ls "$V"/tests/replays/*.rpl "$V"/tests/replays/*/*.rpl > "$T/files.txt"
 python3 -m bbh.rpl dump $(cat "$T/files.txt") > "$T/py.txt"
