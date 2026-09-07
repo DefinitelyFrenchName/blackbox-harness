@@ -17,7 +17,7 @@
 # still stops the battery immediately, exactly as `set -e` did — and since
 # the verdict comes from lib/sh/classify.sh (the ONE classifier), a gate that
 # exits 0 after the shell's own error line, or is killed by the timeout
-# wrapper, stops it too; the lineage read those as PASS.
+# wrapper, stops it too; the lineage read those as PASS until its 14z-139.
 #
 #   bbh_bat <gate.sh> [args...]       run a gate, print its output, count it
 #   bbh_bat_group_skip <label> <n>    a whole group skipped by a branch

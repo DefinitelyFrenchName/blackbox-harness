@@ -7,7 +7,8 @@
 #
 #   F1  both static runners over one synthetic fake repo of stub gates:
 #       output identical (durations normalised); with a gate that exits 0
-#       after a shell error, the diff is EXACTLY the known delta — this
+#       after a shell error, identical too since the lineage's 14z-139 (until
+#       then EXACTLY the known delta — this
 #       classifier is the STRONGER copy (the lineage's static runner has no
 #       shell-error branch; its sweep runner does).
 #   F3  the tier classifier over the lineage's 304 gates: the INSTRUMENT set
@@ -51,7 +52,9 @@ T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT INT TERM
 norm() { sed -E 's/ +[0-9]+s( |$)/ Ns\1/g'; }
 
 echo "== F1. both static runners over one synthetic fake repo =="
-FR="$T/fake"; mkdir -p "$FR/tests"; ln -s "$V/tests/run_all_static.sh" "$FR/tests/run_all_static.sh"
+FR="$T/fake"; mkdir -p "$FR/tests/lib"; ln -s "$V/tests/run_all_static.sh" "$FR/tests/run_all_static.sh"
+# since the lineage's 14z-139 its static runner sources tests/lib/classify.sh relative to its repo
+ln -s "$V/tests/lib/classify.sh" "$FR/tests/lib/classify.sh"
 printf '[project]\nroot = "."\n' > "$FR/bbh.toml"
 mk() { n="$1"; st="$2"; shift 2; { echo "#!/bin/sh"; for l in "$@"; do echo "echo '$l'"; done; echo "exit $st"; } > "$FR/tests/$n.sh"; chmod +x "$FR/tests/$n.sh"; }
 mk g_pass 0 "all good" "PASS: fine"; mk g_fail 1 "something broke" "FAIL: nope"; mk g_skip 0 "SKIP: no build at build/nope"
@@ -68,11 +71,14 @@ else fail "F1: the runners differ:"; sed 's/^/        /' "$T/d.txt"; fi
 mk g_shellcrash 0 "tests/g_shellcrash.sh: line 3: FOO: set FOO to a dir OUTSIDE the repo"; echo g_shellcrash >> "$FR/tests/ci_portable.txt"
 (cd "$FR" && sh tests/run_all_static.sh --tier portable 2>&1; echo "exit=$?") | norm > "$T/a2.txt"
 (cd "$FR" && "$BBH_HOME/bin/bbh-run-static" --config bbh.toml --tier portable 2>&1; echo "exit=$?") | norm > "$T/b2.txt"
-diff "$T/a2.txt" "$T/b2.txt" > "$T/d2.txt" || true
-if grep -q '^<   g_shellcrash .*PASS' "$T/d2.txt" && grep -q '^>   g_shellcrash .*FAIL Ns  (exit 0 after a shell error)' "$T/d2.txt" \
-   && [ "$(grep -c '^[<>]' "$T/d2.txt")" = 7 ]; then
-    ok "F1: with a shell-crash gate the diff is EXACTLY the known delta (lineage PASS, generic FAIL; 7 diff lines: the row, its tail, the tally, the failed list)"
-else fail "F1: unexpected delta with the shell-crash gate:"; sed 's/^/        /' "$T/d2.txt"; fi
+# Until the lineage's 14z-139 this was EXACTLY the known delta (lineage PASS,
+# generic FAIL — the static runner there lacked the exit-0-after-shell-error
+# branch, harness_scope.md §5 rule 2). The lineage now sources ONE classifier
+# in all three of its runners, so the shell-crash gate is FAIL on both sides
+# and the outputs are identical; a delta here would be a regression on either.
+if diff "$T/a2.txt" "$T/b2.txt" > "$T/d2.txt" && grep -q '^  g_shellcrash .*FAIL Ns  (exit 0 after a shell error)' "$T/a2.txt"; then
+    ok "F1: with a shell-crash gate the outputs are identical and both read it FAIL (exit 0 after a shell error) — the pre-14z-139 delta is gone"
+else fail "F1: unexpected delta with the shell-crash gate (the lineage's static runner should FAIL it since its 14z-139):"; sed 's/^/        /' "$T/d2.txt"; fi
 
 echo "== F3. the tier classifier over the lineage's gates =="
 python3 - "$CFG" "$V" <<'EOF' || rc=1

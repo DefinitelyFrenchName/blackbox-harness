@@ -87,7 +87,7 @@ class Settings:
 
 def images_of(imgdir, s):
     """The images under an image dir, the preferred one first. The lineage
-    took `vsavjw` else DIRECTORY ORDER — on its host `vsavj.zip` happened to
+    took `vsavjw` else DIRECTORY ORDER until its 14z-139 — on its host `vsavj.zip` happened to
     list before `vsav.zip`, so a stock build was judged by its own image; the
     harness names that preference ([ref_rot].image_prefer, in order) instead
     of inheriting the filesystem's, and falls back to name order."""
