@@ -104,8 +104,8 @@ DEFAULTS = {
         "precondition_fail_text": "ROM audit FAILED — stop (CLAUDE.md §3)",
         "input_env": "ROMDIR",                            # demanded, made absolute
         "log_dir_prefix": "build/emu_sweep_",             # + a timestamp
-        "placeholders": {"MERGED": "build/m3b_merged23", "DON": "build/don_m20", "HUI": "build/hui54",
-                         "PYR": "build/pyron38", "STOCK": "build/m5_stock15"},   # %NAME%; env NAME= overrides
+        "placeholders": {"MERGED": "build/m3b_merged25", "DON": "build/don_m21", "HUI": "build/hui55",
+                         "PYR": "build/pyron40", "STOCK": "build/m5_stock16"},   # %NAME%; env NAME= overrides
         "rompath_placeholder_suffix": "_RP",              # %NAME_RP% = %NAME% + rompath_suffix
         "rompath_suffix": "/rompath",
         "build_sets": ["vsavjw", "vsavj"],                # the set fingerprinted: the first whose zip exists
@@ -224,7 +224,7 @@ DEFAULTS = {
         # H6 — the recording corpus (bbh inp-corpus / bbh inp-play); the lineage's literals
         "corpus_dir": "tests/inp",                    # <corpus_dir>/<name>/{<name>.inp, nvram/, NOTE, DEFECT?}
         "set": "vsavjw",                              # the set the recordings were played on
-        "build": "build/m3b_merged23",                # the build dir under test (env BUILD / --build override)
+        "build": "build/m3b_merged25",                # the build dir under test (env BUILD / --build override)
         "rompath_suffix": "/rompath",                 # + the build dir = the search path's first component
         "profile": "",                               # the playback guard's profile; "" = [machine].profile, else BBH_PROFILE from the caller
         "mame_bin_default": "$HOME/.cache/vampire-saved/mame/cps2",   # MAME_BIN when the caller set none

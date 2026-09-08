@@ -284,7 +284,7 @@ cannot rot).
 |---|---|---|---|
 | `corpus_dir` | `"tests/inp"` | config | where the recordings live |
 | `set` | `"vsavjw"` | config | the set the recordings were played on; `<build><rompath_suffix>/<set>.zip` must exist |
-| `build` | `"build/m3b_merged23"` | config | the build dir under test (env `BUILD` / `--build` override) |
+| `build` | `"build/m3b_merged25"` | config | the build dir under test (env `BUILD` / `--build` override) |
 | `rompath_suffix` | `"/rompath"` | config | + the build dir = the first component of the search path (the reference input, `[suite].input_env`, is the second) |
 | `profile` | `""` | config | the playback guard's machine profile; `""` = `[machine].profile`; `BBH_PROFILE` in the env wins; none anywhere is a FAIL naming the three |
 | `mame_bin_default` | `"$HOME/.cache/vampire-saved/mame/cps2"` | config | `MAME_BIN` when the caller set none (`$HOME` substituted) |

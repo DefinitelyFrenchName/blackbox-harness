@@ -82,7 +82,7 @@ profile = "cps2"
 [inp]
 corpus_dir = "tests/inp"
 set = "vsavjw"
-build = "build/m3b_merged23"
+build = "build/m3b_merged25"   # re-pointed 14z-143 (M17 pyron-capture freeze) <- m3b_merged23
 rompath_suffix = "/rompath"
 profile = "cps2w"
 mame_bin_default = "$HOME/.cache/vampire-saved/mame/cps2"
