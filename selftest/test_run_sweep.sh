@@ -12,8 +12,14 @@
 # waiting for its own gates under --jobs; the env default exported with its
 # must-fire control; exit 0 after a shell error; the per-row timeout and the
 # per-slot scratch. Plus H4's own: --resume, --only, the precondition hook.
+# Section 16 (its fourteenth): the must-fire controls READ every run and
+# EXECUTED under --controls.
+#
+# MUST-FIRE: shadow-tool: reader-unplugged — a copy of the sweep runner with the gate script no longer handed to the classifier must let a declared-but-unfired stub read PASS, or section 16 was not proving the reader is in the loop
 set -eu
 BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
+. "$BBH_HOME/lib/sh/controls.sh"
+bbh_ctl_mode "$0"
 PYTHONPATH="$BBH_HOME/lib/py"; export PYTHONPATH
 rc=0
 fail() { echo "  FAIL: $*"; rc=1; }
@@ -240,6 +246,61 @@ printf '%s\n' "$out14" | grep -q "^ROM audit FAILED — stop$" && ! printf '%s\n
 printf '#!/usr/bin/env python3\nimport sys\n' > "$FR/tools/audit_roms.py"
 out14b="$(cd "$FR" && "$BBH_HOME/bin/bbh-run-sweep" --config bbh.toml --log "$T/l14b" 2>&1)" && fail "no ROMDIR was accepted" || { printf '%s\n' "$out14b" | grep -q "set ROMDIR — every gate here reads the reference input" && ok "the input variable is demanded (after --list, which needs none)" || fail "input demand: $out14b"; }
 out14c="$(cd "$FR" && "$BBH_HOME/bin/bbh-run-sweep" --config bbh.toml --list 2>&1)" && printf '%s\n' "$out14c" | grep -q "^lanes=prereq fbneo mame scope=release cadence=all only=\*  (1 gates)$" && ok "--list needs no input and prints the lineage's summary line" || fail "--list: $out14c"
+
+echo "16. the must-fire controls are READ every run, and EXECUTED under --controls"
+# READ: a gate whose header declares a control and whose log lacks the FIRED
+# line is FAIL; EXECUTED: `<gate>@<name>` rows, PASS when the mode reaches the
+# gate's own FAIL, FAIL when it LIES (exit 0), REFUSES or DIES.
+mkc() {  # mkc <name> <mode-body> <output lines...>
+    n="$1"; body="$2"; shift 2
+    { echo "#!/bin/sh"; echo "# $n.sh — a stub"
+      echo "# MUST-FIRE: perturbed-copy: flip — a flipped byte must fail"
+      echo ': "${MAME_BIN:-}"'
+      echo 'if [ "${CONTROL:-}" = flip ]; then'; echo "$body"; echo 'fi'
+      for l in "$@"; do echo "echo '$l'"; done; echo "exit 0"; } > "$FR/tests/$n.sh"
+    chmod +x "$FR/tests/$n.sh"
+}
+mkc g_cfired   'echo "FAIL: caught"; exit 1'          "PASS: fine" "CONTROL FIRED: flip — caught"
+mkc g_cmissing 'echo "FAIL: caught"; exit 1'          "PASS: fine"
+mkc g_clies    'echo "PASS: nothing changed"; exit 0' "PASS: fine" "CONTROL FIRED: flip — caught"
+mkc g_cref     'echo "REFUSED: CONTROL=flip is not a mode of this gate"; exit 3' "PASS: fine" "CONTROL FIRED: flip — caught"
+reg "$(row g_cfired mame release - '')" "$(row g_cmissing mame release - '')" \
+    "$(row g_clies mame release - '')" "$(row g_cref mame release - '')"
+# the shadow runner: the real one under a throwaway home with the gate script
+# dropped from the classify call (the must-fire below, and the mode)
+mkdir -p "$T/shadow/bin"; ln -s "$BBH_HOME/lib" "$T/shadow/lib"
+sed 's|bbh_classify "$_st" "$_log" 90 "$GATES_DIR/$_g.sh"|bbh_classify "$_st" "$_log" 90|' "$BBH_HOME/bin/bbh-run-sweep" > "$T/shadow/bin/bbh-run-sweep"
+chmod +x "$T/shadow/bin/bbh-run-sweep"
+grep -q 'bbh_classify "$_st" "$_log" 90$' "$T/shadow/bin/bbh-run-sweep" || fail "the shadow sweep runner was not built (the classify line moved?)"
+SWEEP="$BBH_HOME/bin/bbh-run-sweep"
+if bbh_ctl_is reader-unplugged; then SWEEP="$T/shadow/bin/bbh-run-sweep"; fi
+(cd "$FR" && ROMDIR="$T/roms" "$SWEEP" --config bbh.toml --lane mame --log "$T/l16a" >/dev/null 2>&1) || true
+v16a="$(awk -F'\t' '$1=="g_cfired"{print $4}' "$T/l16a/results.tsv")"; v16b="$(awk -F'\t' '$1=="g_cmissing"{print $4}' "$T/l16a/results.tsv")"
+[ "$v16a" = PASS ] && ok "a declared control that FIRED keeps its gate PASS" || fail "g_cfired classified '$v16a'"
+[ "$v16b" = FAIL ] && ok "a declared control with no FIRED line is FAIL (read on every run, no flag)" || fail "g_cmissing classified '$v16b', expected FAIL"
+n16="$(awk -F'\t' 'NR>1 && $1 ~ /@/' "$T/l16a/results.tsv" | wc -l | tr -d ' ')"
+[ "$n16" = 0 ] && ok "without --controls no control was executed (no @ rows)" || fail "$n16 control rows without --controls"
+out16="$(cd "$FR" && ROMDIR="$T/roms" "$SWEEP" --config bbh.toml --lane mame --controls --log "$T/l16b" 2>&1 || true)"
+x16() {  # x16 <row> <verdict> <detail substring>
+    v="$(awk -F'\t' -v r="$1" '$1==r{print $4}' "$T/l16b/results.tsv")"; d="$(awk -F'\t' -v r="$1" '$1==r{print $6}' "$T/l16b/results.tsv")"
+    [ "$v" = "$2" ] && printf '%s' "$d" | grep -q "$3" && ok "$1 -> $2 ($3)" || fail "$1 -> '$v' '$d', expected $2 / $3"
+}
+x16 g_cfired@flip PASS "honoured"
+x16 g_clies@flip  FAIL "LIES"
+x16 g_cref@flip   FAIL "REFUSED"
+[ -z "$(awk -F'\t' '$1=="g_cmissing@flip"' "$T/l16b/results.tsv")" ] && ok "a gate that FAILED its own run gets no control row (nothing to execute)" \
+    || fail "a control was executed for a gate whose own run failed"
+printf '%s' "$out16" | grep -q 'PASS 4 .*FAIL 3' && ok "tally PASS 4 / FAIL 3: the @ rows count like gates" \
+    || fail "tally: $(printf '%s' "$out16" | grep -E '^PASS ' || echo '(none)')"
+printf '%s' "$out16" | grep -q 'read:     fired 3 / declared 4' && ok "readout: fired 3 / declared 4" \
+    || fail "readout: $(printf '%s' "$out16" | grep 'read:' || echo '(none)')"
+# MUST-FIRE: the same stub through the reader-unplugged copy reads PASS
+reg "$(row g_cmissing mame release - '')"
+(cd "$FR" && ROMDIR="$T/roms" "$T/shadow/bin/bbh-run-sweep" --config bbh.toml --lane mame --log "$T/l16c" >/dev/null 2>&1) || true
+v16c="$(awk -F'\t' '$1=="g_cmissing"{print $4}' "$T/l16c/results.tsv" 2>/dev/null)"
+if [ "$v16c" = PASS ]; then bbh_ctl_fired reader-unplugged "with no gate script handed to the classifier, the declared-but-unfired control reads PASS"
+else bbh_ctl_dead reader-unplugged "the unplugged runner classified g_cmissing '$v16c'" || fail "reader-unplugged"; fi
+rm -f "$FR/tests/g_cfired.sh" "$FR/tests/g_cmissing.sh" "$FR/tests/g_clies.sh" "$FR/tests/g_cref.sh"
 
 echo "15. the shipped example sweeps GREEN, --scope all"
 oe="$(cd "$BBH_HOME/example" && FAKE_ROOT=. "$BBH_HOME/bin/bbh" run-sweep --scope all --strict --log "$T/lex" 2>&1)" && se=0 || se=$?

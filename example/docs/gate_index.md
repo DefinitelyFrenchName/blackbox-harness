@@ -8,12 +8,12 @@ the one hand-maintained input; `tier` from the two plain registries.
 Regenerate with `../bin/bbh gate-index --config bbh.toml`; `tests/g_hygiene.sh`
 fails when this file is stale or a gate has no family row.
 
-**12 scripts** — 6 ci_portable, 1 ci_static, 5 driver-tier (run by name).
+**13 scripts** — 7 ci_portable, 1 ci_static, 5 driver-tier (run by name).
 
 | family | scripts | what the family is |
 |---|---|---|
 | [runner](#runner) | 2 | the instrument check and the tier-classifier fixture |
-| [classify](#classify) | 6 | one gate per verdict the classifier must get right |
+| [classify](#classify) | 7 | one gate per verdict the classifier must get right |
 | [suite](#suite) | 3 | the replay suite on the fake machine, green and refusing |
 | [hygiene](#hygiene) | 1 | the expectation and gate hygiene checks, run as a consumer runs them |
 
@@ -32,6 +32,7 @@ one gate per verdict the classifier must get right.
 
 | gate | kind | tier | needs | locks (the script's own header) | since |
 |---|---|---|---|---|---|
+| `tests/g_control.sh` | test | ci_portable | — | a gate under THE MUST-FIRE CONTRACT: its control is DECLARED in this header, FIRED at run time as a column-0 line, and EXECUTABLE as a mode (`CONTROL=flip tests/g_control.sh` must reach this gate's own FAIL). The property: | — |
 | `tests/g_pass.sh` | test | ci_portable | — | the plainest gate: one assertion, one verdict line, exit 0. ROM-free, ~0 s. | — |
 | `tests/g_prose.sh` | test | ci_portable | — | the word SKIP in PROSE is not a marker: this gate PASSES. ROM-free, ~0 s. | — |
 | `tests/g_segv_prose.sh` | test | ci_portable | — | the BENIGN look-alike of a shell error: a driver segfaulting at teardown AFTER the summary line. Digits sit where a shell error carries a NAME, so the classifier leaves it PASS. ROM-free, ~0 s. | — |

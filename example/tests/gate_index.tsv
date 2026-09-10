@@ -18,3 +18,4 @@ tests/g_suite.sh	suite
 tests/g_suite_refuses.sh	suite
 tests/g_fields.sh	suite
 tests/g_hygiene.sh	hygiene
+tests/g_control.sh	classify

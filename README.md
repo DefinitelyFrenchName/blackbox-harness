@@ -81,7 +81,7 @@ changes, grep for the claim.
 
 ```
 bin/        bbh (dispatcher), bbh-run-static, bbh-run-suite, bbh-run-sweep, bbh-classify, bbh-doctor, bbh-inp-play, bbh-inp-corpus
-lib/sh/     classify.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh shadow_tools.sh accounting.sh mame_sandbox.sh
+lib/sh/     classify.sh controls.sh registry.sh config.sh prologue.sh masked_compare.sh enumerate_expectations.sh shadow_tools.sh accounting.sh mame_sandbox.sh
 lua/mame/   profile.lua rpl_parse.lua rpl_dump.lua replay.lua replay_guard.lua inp_guard.lua snapshot_frames.lua trace_writes.lua tap_writes.lua read_tap.lua
             profiles/ (cps2.lua cps2w.lua TEMPLATE.lua) — the MACHINE PROFILES (docs/lua.md)
 lib/py/bbh/ config.py toml_subset.py tier.py demand_after_trap.py thresholds.py logfmt.py fingerprint.py rpl.py
@@ -92,7 +92,7 @@ selftest/   run.sh + test_*.sh (incl. test_fidelity_vampire.sh, the lineage fide
             and F2 opt-in, and test_fidelity_mame.sh, F8 on the real emulators — opt-in, BBH_MAME_FIDELITY=1)
 example/    a complete tiny consumer: fakesys/ (the fake machine + ROM generator), roms/, replays/, expected/, tests/
             (+ consumers/ for real ones); tests/fields.tsv + g_fields.sh: the dual-implementation protocol on the fake
-skill/      blackbox-harness/{SKILL.md, GUIDE.md} — the agent-facing distillation of these docs ([BBH-1..87], locked by
+skill/      blackbox-harness/{SKILL.md, GUIDE.md} — the agent-facing distillation of these docs ([BBH-1..91], locked by
             bbh check-skills, the guide GENERATED) and skills.toml, its lock config; symlink the directory into ~/.claude/skills/
 docs/       doctrine.md gate_contract.md config.md hygiene.md lua.md conventions.md rebaselines.md method/oracle_classes.md
             <name>_history.md twins carry a page's complete LOG (docs/doctrine.md §3); the page stays lean

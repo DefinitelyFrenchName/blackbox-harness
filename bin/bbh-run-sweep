@@ -36,6 +36,23 @@
 #   ... --keep-going                   do not stop when the prereq lane fails
 #   ... --dry-run                      print the resolved command per gate
 #   ... --list                         print the registry and exit
+#   ... --controls                     EXECUTE every declared must-fire control
+#                                      (`CONTROL=<name> <gate>` after a PASS; one
+#                                      results row per control; off by default —
+#                                      it re-runs each gate once per control)
+#
+# THE MUST-FIRE CONTROLS ARE READ ON EVERY RUN (docs/gate_contract.md §5):
+# the classifier is handed the gate SCRIPT, so a gate whose header declares
+# `# MUST-FIRE:` controls and whose log lacks the matching `CONTROL FIRED:`
+# lines — or carries a `CONTROL DEAD:` — is plain FAIL (lib/sh/controls.sh,
+# the one reader). `--controls` adds the EXECUTABLE form: each declared name
+# is a MODE the gate must honour by applying the perturbation to its real
+# input and reaching its own FAIL. Its rows are `<gate>@<name>` with verdict
+# PASS (honoured) or FAIL (LIES = exit 0, REFUSED = not a mode of the gate,
+# DIED = a crash), so they land in the tally and under --strict like any
+# gate. Off by default because it multiplies the tier's runtime by the
+# control count; when it runs is the consumer's release policy (the lineage
+# ruled it part of every release run, not of the freeze sweep).
 #
 # The registry (docs/config.md [registries].sweep): one row per gate,
 # `gate <TAB> lane <TAB> scope <TAB> cadence <TAB> args <TAB> note [<TAB> timeout]`;
@@ -51,7 +68,7 @@ BBH_HOME="${BBH_HOME:-$(cd "$(dirname "$0")/.." && pwd)}"; export BBH_HOME
 . "$BBH_HOME/lib/sh/classify.sh"
 
 CONFIG=""; SCOPE=""; CADENCE=all; LANES=""; LANES_SET=""; LANE_ALL=0; ONLY=""; JOBS=1; TMO=""
-LOGDIR=""; RESUME=0; STRICT=0; KEEPGOING=0; DRY=0; LIST=0; FREEZE=0
+LOGDIR=""; RESUME=0; STRICT=0; KEEPGOING=0; DRY=0; LIST=0; FREEZE=0; CONTROLS=0
 while [ $# -gt 0 ]; do
     case "$1" in
     --config)  shift; CONFIG="${1:?--config needs a file}" ;;
@@ -76,6 +93,7 @@ while [ $# -gt 0 ]; do
     --keep-going) KEEPGOING=1 ;;
     --dry-run) DRY=1 ;;
     --list)    LIST=1 ;;
+    --controls) CONTROLS=1 ;;
     -h|--help) sed -n '2,44p' "$0"; exit 0 ;;
     *) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
     esac
@@ -307,11 +325,37 @@ run_one() {   # run_one <gate> <lane> <scope> <args> [timeout] — writes one re
         env $_env "$GATES_DIR/$_g.sh" $_pos </dev/null >> "$_log" 2>&1 && _st=0 || _st=$?
     fi
     _t1=$(date +%s); _dur=$((_t1 - _t0))
-    bbh_classify "$_st" "$_log" 90
+    # The 4th argument is the gate SCRIPT: its MUST-FIRE declarations are
+    # read against the log (lib/sh/controls.sh).
+    bbh_classify "$_st" "$_log" 90 "$GATES_DIR/$_g.sh"
     _v="$BBH_VERDICT"; _d="$BBH_DETAIL"
     [ "$_v" = TIMEOUT ] && _d="killed after ${_tmo}s"
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$_g" "$_lane" "$_scope" "$_v" "$_dur" "$_d" >> "$RESULTS"
     printf '  %-34s %-7s %4ss  %s\n' "$_g" "$_v" "$_dur" "$_d"
+    # THE EXECUTABLE CONTROLS (--controls): one more run per declared name.
+    if [ "$CONTROLS" = 1 ] && [ "$_v" = PASS ] && [ "${BBH_CTL_DECLARED:-0}" != 0 ]; then
+        for _cn in $(bbh_ctl_declared "$GATES_DIR/$_g.sh"); do
+            _clog="$LOGDIR/$_g@$_cn.log"; _c0=$(date +%s)
+            { echo "### $_g@$_cn  CONTROL=$_cn (the executable must-fire control; this run must FAIL)"
+              echo "### cmd: env$_env CONTROL=$_cn $GATES_DIR/$_g.sh$_pos"; } > "$_clog"
+            if [ -n "$TIMEOUT_BIN" ]; then
+                # shellcheck disable=SC2086
+                env $_env CONTROL="$_cn" "$TIMEOUT_BIN" -k 30 "$_tmo" "$GATES_DIR/$_g.sh" $_pos </dev/null >> "$_clog" 2>&1 && _cs=0 || _cs=$?
+            else
+                # shellcheck disable=SC2086
+                env $_env CONTROL="$_cn" "$GATES_DIR/$_g.sh" $_pos </dev/null >> "$_clog" 2>&1 && _cs=0 || _cs=$?
+            fi
+            _c1=$(date +%s); _cdur=$((_c1 - _c0))
+            bbh_classify_control "$_cs" "$_clog"
+            case "$BBH_CTL_EXEC" in
+            HONOURED) _cv=PASS; _cd="control honoured: $_cn $BBH_CTL_EXEC_DETAIL" ;;
+            TIMEOUT)  _cv=TIMEOUT; _cd="control $_cn killed after ${_tmo}s" ;;
+            *)        _cv=FAIL; _cd="control $BBH_CTL_EXEC: $_cn — $BBH_CTL_EXEC_DETAIL" ;;
+            esac
+            printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$_g@$_cn" "$_lane" "$_scope" "$_cv" "$_cdur" "$_cd" >> "$RESULTS"
+            printf '  %-34s %-7s %4ss  %s\n' "$_g@$_cn" "$_cv" "$_cdur" "$_cd"
+        done
+    fi
 }
 
 already_done() {  # already_done <gate>
@@ -464,6 +508,21 @@ n_skip=$(awk -F'\t' 'NR>1 && $4=="SKIP"'    "$RESULTS" | wc -l | tr -d ' ')
 n_fail=$(awk -F'\t' 'NR>1 && $4=="FAIL"'    "$RESULTS" | wc -l | tr -d ' ')
 n_tmo=$(awk  -F'\t' 'NR>1 && $4=="TIMEOUT"' "$RESULTS" | wc -l | tr -d ' ')
 n_miss=$(awk -F'\t' 'NR>1 && $4=="MISSING"' "$RESULTS" | wc -l | tr -d ' ')
+# THE CONTROLS READOUT: fired / declared over the gates that ran, from the
+# same reader the classifier used; the executable rows (if --controls) are
+# already in the tally as <gate>@<name>.
+_cd=0; _cf=0; _cu=0; _cx=0
+for _rg in $(awk -F'\t' 'NR>1 && $1 !~ /@/ && ($4=="PASS"||$4=="FAIL") {print $1}' "$RESULTS"); do
+    [ -f "$GATES_DIR/$_rg.sh" ] && [ -f "$LOGDIR/$_rg.log" ] || continue
+    bbh_ctl_read "$GATES_DIR/$_rg.sh" "$LOGDIR/$_rg.log"
+    _cd=$((_cd + BBH_CTL_DECLARED)); _cf=$((_cf + BBH_CTL_FIRED))
+    [ "$BBH_CTL_VERDICT" = UNDECLARED ] && _cu=$((_cu + 1))
+done
+_cx=$(awk -F'\t' 'NR>1 && $1 ~ /@/' "$RESULTS" | wc -l | tr -d ' ')
+echo
+echo "== must-fire controls =="
+echo "  read:     fired $_cf / declared $_cd  (undeclared gates: $_cu)"
+[ "$CONTROLS" = 1 ] && echo "  executed: $_cx control run(s) as <gate>@<name> rows, in the tally below"                     || echo "  executed: (off — pass --controls to run each declared control as a mode)"
 echo
 echo "======================================================================"
 printf 'PASS %-4s  SKIP %-4s  FAIL %-4s  TIMEOUT %-4s  MISSING %s\n' \

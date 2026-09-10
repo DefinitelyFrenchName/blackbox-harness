@@ -241,6 +241,70 @@ harness tree at load time.
 > check to fail for the stated reason. Three shapes, in order of how often
 > they fit:
 
+**[BBH-88]** **A control is DECLARED as one header line in one grammar, and four regexes are its only reader:** `# MUST-FIRE: <shape>: <name> — <what must fail>` (shape `perturbed-copy` | `shadow-tool` | `known-bad`, name `[a-z0-9-]+`, the em dash) in the leading comment block, a bare `#` continuing it; a malformed line or one below the first code line declares NOTHING, and a gate that asserts nothing says `# MUST-FIRE: none — <why>` so silence is distinguishable from omission.
+
+> **Incident** (`docs/gate_contract.md` › *5.1 The declaration (the header line the runners read)*):
+>
+> A control is DECLARED as one line in the gate's HEADER — the leading
+> comment block, every `#` line after the shebang up to the first non-comment
+> line, a bare `#` continuing it — in exactly this grammar, and the four
+> regexes of `lib/sh/controls.sh` are the only reader:
+
+**[BBH-89]** **A declared control that did not print `CONTROL FIRED: <name>` at column 0, a `CONTROL DEAD:` line, or a firing no header declares is plain FAIL — no fourth verdict;** the classifier reads the gate SCRIPT beside the log, an undeclared gate is counted and never failed, and SKIP and FAIL are never touched.
+
+> **Incident** (`docs/gate_contract.md` › *5.2 The firing (what the classifier compares)*):
+>
+> When a declared control fails for its stated reason the gate prints, at
+> column 0, `CONTROL FIRED: <name> — <evidence>`; when it does not — it
+> passed, or failed for another reason — `CONTROL DEAD: <name> — <what
+> happened>`. An indented line is prose. Every runner hands the classifier
+> the gate SCRIPT beside the log (`bbh_classify <exit> <log> <width> <script>`),
+> and for a PASSING gate the classifier compares declared against fired: a
+> declared control that did not fire, a `CONTROL DEAD:` line, or a firing no
+> header declares turns the verdict into plain **FAIL** — there is no fourth
+> verdict, and the FAIL row names it (`controls RED: <name>(not fired)`). A
+> gate with no declaration is left alone and COUNTED as undeclared (a
+> consumer's gates may predate the grammar); a `none` declaration is counted
+> as such. SKIP and FAIL are never touched: a skipped gate ran nothing, a
+> failed gate is already red.
+
+**[BBH-90]** **`CONTROL FIRED` is a self-report, so every declared name is also a MODE:** `CONTROL=<name> <gate>` applies the perturbation to the REAL input and must reach the gate's own FAIL — HONOURED; exit 0 or a SKIP is LIES, a `REFUSED: CONTROL=` line (exit 3, the gate's answer to a name it does not declare or a prerequisite the host lacks) is a dead mode, a crash is DIED — and a gate never uses `CONTROL` as its own variable.
+
+> **Incident** (`docs/gate_contract.md` › *5.3 The executable form (`CONTROL=<name>`)*):
+>
+> `CONTROL FIRED` is the gate's SELF-report, and a control can print it while
+> testing nothing — it wrote a value and asserted the value was not something
+> else. So a declared name is also a MODE: `CONTROL=<name> tests/<gate>.sh`
+> applies that control's perturbation to the gate's REAL input and runs to the
+> gate's OWN verdict, which must be FAIL. The gate announces the mode
+> (`CONTROL MODE: <name> — …`, `bbh_ctl_mode "$0"`) and REFUSES a name its
+> header does not declare (`REFUSED: CONTROL=<name> is not a mode of this
+> gate`, exit 3). The runner's verdict on a control run (`bbh_classify_control`,
+> one copy, so no runner carries a second shell-error regex):
+
+**[BBH-91]** **One `perturb` function serves the control section and the mode,** so what the mode proves is what the control claims; the static runner executes every declared control after a PASS by default (`--exec-controls none` to iterate) and prints the fired/declared and executed readout only when a tier declared or executed anything, and the sweep executes under `--controls` as `<gate>@<name>` rows on the consumer's release cadence.
+
+> **Incident** (`docs/gate_contract.md` › *5.4 The pattern, and the runners*):
+>
+> Write each perturbation as ONE function the control section and the mode
+> both call (`perturb <name> <copy>`); under the mode the perturbed copy
+> becomes the INPUT the main check reads, while the control section still
+> builds its own copy and prints the FIRED/DEAD line — so what the mode
+> proves is exactly what the control claims, and the two cannot drift.
+> `bbh run-static` reads every gate's block for free and EXECUTES each declared
+> control after a PASS (`--exec-controls all|portable|none`, default `all`,
+> because a lying control must not pass a pre-commit; `none` is the
+> developer's iteration knob), printing a readout — `fired N / declared N`,
+> the none and undeclared counts, `executed N honoured N lies N refused N
+> died N` — only when the tier declared or executed anything, so a consumer
+> that has not adopted the grammar sees the runner it always had, byte for
+> byte. `bbh run-sweep` reads every block on every run and executes under
+> `--controls` (one more row per declared name, `<gate>@<name>`, PASS =
+> honoured, in the tally and under `--strict`); it is off by default because
+> it multiplies a tier measured in hours, and when it runs is the consumer's
+> release policy. `example/tests/g_control.sh` is the worked instance; the
+> ground truth is `selftest/test_controls.sh` with the runners' selftests.
+
 **[BBH-22]** **A gate that is in no registry is not run.** Instrument-free gates are in the portable or the static registry, instrument gates in the sweep registry, and the runners report every gate in neither and every registered gate that no longer exists: the anti-orphan report is the mechanism, and without it a runner is a smaller thing to forget to update.
 
 > **Incident** (`docs/gate_contract.md` › *6. Registration (a gate that is not in a registry is not run)*):

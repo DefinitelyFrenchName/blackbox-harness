@@ -7,3 +7,5 @@ g_skip_indent
 g_prose
 g_segv_prose
 g_hygiene
+# g_control: a gate under the must-fire contract — declared, fired, executable
+g_control

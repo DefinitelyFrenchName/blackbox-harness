@@ -10,7 +10,10 @@
 #       after a shell error, identical too since the lineage's 14z-139 (until
 #       then EXACTLY the known delta — this
 #       classifier is the STRONGER copy (the lineage's static runner has no
-#       shell-error branch; its sweep runner does).
+#       shell-error branch; its sweep runner does); and with gates DECLARING
+#       must-fire controls (fired, missing, dead, an undeclared firing, none;
+#       an executable one that honours, lies, refuses, dies), identical too
+#       since the reader was lifted (the lineage's 14z-147 -> here 2026-09-10).
 #   F3  the tier classifier over the lineage's 304 gates: the INSTRUMENT set
 #       minus the plain registries minus `run_` names == its sweep registry;
 #       every PLAIN gate is in a plain registry; every sweep row exists.
@@ -77,8 +80,10 @@ norm() { sed -E 's/ +[0-9]+s( |$)/ Ns\1/g'; }
 
 echo "== F1. both static runners over one synthetic fake repo =="
 FR="$T/fake"; mkdir -p "$FR/tests/lib"; ln -s "$V/tests/run_all_static.sh" "$FR/tests/run_all_static.sh"
-# since the lineage's 14z-139 its static runner sources tests/lib/classify.sh relative to its repo
+# since the lineage's 14z-139 its static runner sources tests/lib/classify.sh relative to its repo,
+# and since its 14z-147 the classifier sources tests/lib/controls.sh beside it
 ln -s "$V/tests/lib/classify.sh" "$FR/tests/lib/classify.sh"
+ln -s "$V/tests/lib/controls.sh" "$FR/tests/lib/controls.sh"
 printf '[project]\nroot = "."\n' > "$FR/bbh.toml"
 mk() { n="$1"; st="$2"; shift 2; { echo "#!/bin/sh"; for l in "$@"; do echo "echo '$l'"; done; echo "exit $st"; } > "$FR/tests/$n.sh"; chmod +x "$FR/tests/$n.sh"; }
 mk g_pass 0 "all good" "PASS: fine"; mk g_fail 1 "something broke" "FAIL: nope"; mk g_skip 0 "SKIP: no build at build/nope"
@@ -103,6 +108,29 @@ mk g_shellcrash 0 "tests/g_shellcrash.sh: line 3: FOO: set FOO to a dir OUTSIDE 
 if diff "$T/a2.txt" "$T/b2.txt" > "$T/d2.txt" && grep -q '^  g_shellcrash .*FAIL Ns  (exit 0 after a shell error)' "$T/a2.txt"; then
     ok "F1: with a shell-crash gate the outputs are identical and both read it FAIL (exit 0 after a shell error) — the pre-14z-139 delta is gone"
 else fail "F1: unexpected delta with the shell-crash gate (the lineage's static runner should FAIL it since its 14z-139):"; sed 's/^/        /' "$T/d2.txt"; fi
+# the must-fire contract: gates that DECLARE controls, through both runners
+# with the executable form ON (both default to executing every control)
+mkc() { n="$1"; st="$2"; hdr="$3"; shift 3; { echo "#!/bin/sh"; echo "# $n.sh — a stub"; echo "$hdr"; for l in "$@"; do echo "echo '$l'"; done; echo "exit $st"; } > "$FR/tests/$n.sh"; chmod +x "$FR/tests/$n.sh"; }
+mkx() { { echo "#!/bin/sh"; echo "# $1.sh — a stub"; echo "# MUST-FIRE: perturbed-copy: flip — a flipped byte must fail"
+          echo 'if [ "${CONTROL:-}" = flip ]; then'; echo "$2"; echo 'fi'; echo "echo 'PASS: fine'"; echo "echo 'CONTROL FIRED: flip — caught'"; echo "exit 0"; } > "$FR/tests/$1.sh"; chmod +x "$FR/tests/$1.sh"; }
+mkc g_cfired   0 "# MUST-FIRE: perturbed-copy: flip — a flipped byte must fail" "PASS: fine" "CONTROL FIRED: flip — caught"
+mkc g_cmissing 0 "# MUST-FIRE: perturbed-copy: flip — a flipped byte must fail" "PASS: fine"
+mkc g_cdead    0 "# MUST-FIRE: perturbed-copy: flip — a flipped byte must fail" "PASS: fine" "CONTROL DEAD: flip — the copy passed"
+mkc g_cghost   0 "# a header with no declaration" "PASS: fine" "CONTROL FIRED: ghost — nobody declared me"
+mkc g_cnone    0 "# MUST-FIRE: none — a lister asserts nothing" "PASS: fine"
+mkx g_xhon  'echo "FAIL: the flipped input was caught"; exit 1'
+mkx g_xlies 'echo "PASS: nothing changed"; exit 0'
+mkx g_xref  'echo "REFUSED: CONTROL=flip is not a mode of this gate"; exit 3'
+mkx g_xdied 'echo "tests/g_xdied.sh: line 9: FOO: parameter not set"; exit 0'
+printf 'g_cfired\ng_cmissing\ng_cdead\ng_cghost\ng_cnone\ng_xhon\ng_xlies\ng_xref\ng_xdied\n' >> "$FR/tests/ci_portable.txt"
+(cd "$FR" && sh tests/run_all_static.sh --tier portable 2>&1; echo "exit=$?") | norm > "$T/a3.txt"
+(cd "$FR" && "$BBH_HOME/bin/bbh-run-static" --config bbh.toml --tier portable 2>&1; echo "exit=$?") | norm > "$T/b3.txt"
+# read: 7 declarations (three header stubs + four executable stubs; the ghost
+# declares nothing), 5 fired; executed: the header-only g_cfired LIES under
+# the mode too (it never reads CONTROL), so honoured 1 lies 2 refused 1 died 1
+if diff "$T/a3.txt" "$T/b3.txt" > "$T/d3.txt" && grep -q '^  read:     fired 5 / declared 7' "$T/a3.txt" && grep -q 'honoured 1  lies 2  refused 1  died 1' "$T/a3.txt" && grep -q '^  g_cmissing .*FAIL Ns  (controls RED: flip(not fired))' "$T/a3.txt"; then
+    ok "F1: with nine declaring gates the outputs are identical — read fired 5 / declared 7, executed honoured 1 lies 2 refused 1 died 1, a controls red named as such, on both sides"
+else fail "F1: the runners differ over the declaring gates (or the readout is not the expected one):"; sed 's/^/        /' "$T/d3.txt" | head -30; grep -E 'read:|executed:' "$T/a3.txt" | sed 's/^/        a: /'; fi
 
 echo "== F3. the tier classifier over the lineage's gates =="
 python3 - "$CFG" "$V" <<'EOF' || rc=1
@@ -390,8 +418,12 @@ else fail "F11 skill-guide differs or not current:"; printf '%s\n' "$a11g" > "$T
 
 echo "== F2. the lineage's portable tier through both runners (opt-in) =="
 if [ "${BBH_FIDELITY_F2:-0}" = 1 ]; then
-    (cd "$V" && sh tests/run_all_static.sh --tier portable 2>&1; echo "exit=$?") | norm > "$T/p_a.txt"
-    (cd "$V" && "$BBH_HOME/bin/bbh-run-static" --config "$CFG" --tier portable 2>&1; echo "exit=$?") | norm > "$T/p_b.txt"
+    # --exec-controls none on BOTH sides: the lineage's portable tier declares
+    # ~100 controls and executing them costs ~20 min per runner; the READ half
+    # (declared vs fired, the readout) runs here over the real tier, the
+    # EXECUTED half is proved identical over F1's synthetic stubs above.
+    (cd "$V" && sh tests/run_all_static.sh --tier portable --exec-controls none 2>&1; echo "exit=$?") | norm > "$T/p_a.txt"
+    (cd "$V" && "$BBH_HOME/bin/bbh-run-static" --config "$CFG" --tier portable --exec-controls none 2>&1; echo "exit=$?") | norm > "$T/p_b.txt"
     if diff "$T/p_a.txt" "$T/p_b.txt" > "$T/p_d.txt"; then ok "F2: the whole portable tier — identical output ($(grep -c ' PASS Ns' "$T/p_a.txt") PASS rows)"
     else fail "F2: the portable tier differs:"; sed 's/^/        /' "$T/p_d.txt" | head -20; fi
 else

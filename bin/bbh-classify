@@ -3,9 +3,14 @@
 # human checking what a runner would say about one gate's run.
 #
 # Usage:
-#   bbh-classify <exit-status> <logfile> [--config bbh.toml] [--width N]
+#   bbh-classify <exit-status> <logfile> [--config bbh.toml] [--width N] [--gate <script>]
+#   bbh-classify <exit-status> <logfile> --control
 # Prints `<VERDICT>\t<detail>` (PASS | SKIP | FAIL | TIMEOUT) and exits 0.
-# Without --config the classifier's built-in defaults apply.
+# Without --config the classifier's built-in defaults apply. `--gate` hands
+# the classifier the gate SCRIPT so its `# MUST-FIRE:` declarations are read
+# against the log (a red block on a PASS is FAIL; docs/gate_contract.md §5).
+# `--control` classifies a `CONTROL=<name>` run instead: HONOURED | LIES |
+# REFUSED | DIED | TIMEOUT.
 set -eu
 BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
 . "$BBH_HOME/lib/sh/config.sh"
@@ -13,15 +18,22 @@ BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
 
 [ $# -ge 2 ] || { sed -n '2,9p' "$0"; exit 2; }
 ST="$1"; LOG="$2"; shift 2
-W=90
+W=90; GATE=""; CTL=0
 while [ $# -gt 0 ]; do
     case "$1" in
     --config) shift; bbh_config_init "${1:?--config needs a file}"; bbh_classify_env ;;
     --width)  shift; W="${1:?--width needs N}" ;;
+    --gate)   shift; GATE="${1:?--gate needs a script}" ;;
+    --control) CTL=1 ;;
     *) echo "unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
 done
 [ -f "$LOG" ] || { echo "bbh-classify: no such log '$LOG'" >&2; exit 2; }
-bbh_classify "$ST" "$LOG" "$W"
+if [ "$CTL" = 1 ]; then
+    bbh_classify_control "$ST" "$LOG"
+    printf '%s\t%s\n' "$BBH_CTL_EXEC" "$BBH_CTL_EXEC_DETAIL"
+    exit 0
+fi
+bbh_classify "$ST" "$LOG" "$W" "$GATE"
 printf '%s\t%s\n' "$BBH_VERDICT" "$BBH_DETAIL"

@@ -16,7 +16,9 @@ for t in "$BBH_HOME"/selftest/test_*.sh; do
     _t0=$(date +%s)
     sh "$t" </dev/null > "$W/$g.out" 2>&1 && _st=0 || _st=$?
     _dur=$(( $(date +%s) - _t0 ))
-    bbh_classify "$_st" "$W/$g.out" 70
+    # the 4th argument: a selftest that DECLARES controls under the grammar
+    # must fire them (lib/sh/controls.sh) — the harness eats its own verdicts
+    bbh_classify "$_st" "$W/$g.out" 70 "$t"
     case "$BBH_VERDICT" in
     PASS) printf '  %-28s PASS  %3ss\n' "$g" "$_dur"; n_pass=$((n_pass+1)) ;;
     SKIP) printf '  %-28s SKIP  %3ss  %s\n' "$g" "$_dur" "$BBH_DETAIL"; n_skip=$((n_skip+1)); skipped="$skipped $g" ;;

@@ -33,3 +33,26 @@ default. Newest first. No anchor lives here.
   lineage tree present (`test_fidelity_vampire` 106 s, `test_run_sweep`
   57 s, `test_suite_dispatch` 40 s dominate); the README said "~3.5 min"
   from before the fidelity tests existed.
+- **2026-09-10 — the must-fire contract's reader lifted (a COPY, never a
+  dependency).** The lineage had taught its static runner (its 14z-147) to
+  read `# MUST-FIRE:` declarations, fail a red controls block and execute
+  every declared control as a `CONTROL=<name>` mode, printing a readout;
+  this harness's runner printed nothing of the kind, so F2 carried a known
+  delta from that day. Landed here: `lib/sh/controls.sh` (the four regexes,
+  `bbh_ctl_*`), the classifier's 4th argument and `bbh_classify_control`,
+  `bbh run-static --exec-controls`, `bbh run-sweep --controls`, `bbh classify
+  --gate` / `--control`, `example/tests/g_control.sh`, `selftest/test_controls.sh`
+  and sections in the two runner selftests, rules [BBH-88..91]. The readout's
+  header line was made generic on BOTH sides (`== must-fire controls ==`; the
+  lineage's had named its own lib path) and a controls-red FAIL row now says
+  `(controls RED: …)` instead of `(exit 0 after a shell error)` on both sides —
+  a verdict-text change under convention 8, dated in `docs/rebaselines.md`.
+  **F1 extended** with nine declaring stubs through both runners (fired 5 /
+  declared 7, honoured 1 lies 2 refused 1 died 1): identical. **F2
+  re-measured: IDENTICAL, 70 PASS rows** (was 65 at H1) — run with
+  `--exec-controls none` on both sides, because executing the lineage's ~100
+  portable-tier controls costs ~20 min per runner; the executed half is
+  proved over F1's stubs. Measured in passing: the lineage's own
+  `--exec-controls all` default turns its ~4-minute pre-commit tier into
+  ~22 minutes, which it keeps by ruling (a lying control must not pass a
+  pre-commit).

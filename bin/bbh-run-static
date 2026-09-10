@@ -21,6 +21,25 @@
 #   ... --strict                              SKIP is a failure too
 #   ... --list                                print the registry and exit
 #   ... --tier portable|static                one tier only
+#   ... --exec-controls all|portable|none    which tier's declared must-fire
+#                                            controls are EXECUTED (default all)
+#
+# THE MUST-FIRE CONTROLS ARE READ AND EXECUTED (docs/gate_contract.md §5).
+# Two things, both through lib/sh/controls.sh — the one reader of the
+# `# MUST-FIRE:` grammar:
+#   READ  (free, every gate): a gate whose header DECLARES a control must
+#         print `CONTROL FIRED: <name>` in its run; a declared control that
+#         did not fire, a `CONTROL DEAD:` line, or a firing no header declares
+#         turns the verdict into plain FAIL (lib/sh/classify.sh). A gate
+#         with no declaration is COUNTED as undeclared, never failed.
+#   EXEC  (one extra run per declared control, `CONTROL=<name> <gate>`):
+#         the gate applies the perturbation to its REAL input and must reach
+#         its OWN FAIL — HONOURED; exit 0 is LIES, a `REFUSED:` line is a dead
+#         mode, a crash is DIED. Every non-HONOURED row is a failure of the
+#         run, named `<gate>(control:<name>:<verdict>)`. `--exec-controls
+#         none` is the developer's iteration knob; the default executes all,
+#         because a lying control must not pass a pre-commit.
+# Lineage: VampireSaved's run_all_static.sh, 14z-147.
 #
 # The config names the gates dir and the two registries ([registries]
 # portable / static), and `static_needs_env` — the variable (default ROMDIR)
@@ -34,13 +53,14 @@ BBH_HOME="$(cd "$(dirname "$0")/.." && pwd)"; export BBH_HOME
 . "$BBH_HOME/lib/sh/classify.sh"
 . "$BBH_HOME/lib/sh/registry.sh"
 
-CONFIG=""; STRICT=0; TIER=all; LIST=0
+CONFIG=""; STRICT=0; TIER=all; LIST=0; EXEC_CTL=all
 while [ $# -gt 0 ]; do
     case "$1" in
     --config) shift; CONFIG="${1:?--config needs a file}" ;;
     --strict) STRICT=1 ;;
     --list)   LIST=1 ;;
     --tier)   shift; TIER="${1:?--tier needs portable|static|all}" ;;
+    --exec-controls) shift; EXEC_CTL="${1:?--exec-controls needs all|portable|none}" ;;
     -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
     *) echo "unknown argument '$1' (try --help)" >&2; exit 2 ;;
     esac
@@ -86,6 +106,11 @@ fi
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT INT TERM
 n_pass=0; n_skip=0; n_fail=0; n_miss=0
 failed=""; skipped=""
+# the controls ledger: declared / fired over the tier, the undeclared count,
+# and the executable-control rows (gate, name, verdict, seconds)
+c_decl=0; c_fired=0; c_undecl=0; c_none=0
+x_ok=0; x_lies=0; x_refused=0; x_died=0
+: > "$WORK/controls.tsv"
 
 # WORKING-TREE SNAPSHOT. This is the PRE-COMMIT command, so it must not leave
 # the tree dirty — and in the lineage it did on the first full run: gates
@@ -114,7 +139,14 @@ run_tier() {  # run_tier <label> <names>
         "$GATES_DIR/$g.sh" </dev/null > "$WORK/$g.out" 2>&1 && _st=0 || _st=$?
         _t1=$(date +%s)
         _dur=$((_t1 - _t0))
-        bbh_classify "$_st" "$WORK/$g.out" 58
+        # the 4th argument is the gate SCRIPT: the classifier reads its
+        # MUST-FIRE declarations against the log
+        bbh_classify "$_st" "$WORK/$g.out" 58 "$GATES_DIR/$g.sh"
+        case "${BBH_CTL_VERDICT:-}" in
+        OK|RED)     c_decl=$((c_decl + BBH_CTL_DECLARED)); c_fired=$((c_fired + BBH_CTL_FIRED)) ;;
+        NONE)       c_none=$((c_none + 1)) ;;
+        UNDECLARED) if [ "$BBH_VERDICT" = PASS ]; then c_undecl=$((c_undecl + 1)); fi ;;
+        esac
         case "$BBH_VERDICT" in
         TIMEOUT)
             printf '  %-34s TIMEOUT %3ss  (exit %s)\n' "$g" "$_dur" "$_st"
@@ -122,6 +154,9 @@ run_tier() {  # run_tier <label> <names>
         FAIL)
             if [ "$_st" != 0 ]; then
                 printf '  %-34s FAIL  %3ss  (exit %s)\n' "$g" "$_dur" "$_st"
+            elif [ "${BBH_CTL_VERDICT:-}" = RED ]; then
+                # a controls red on an exit-0 run: say so, not "shell error"
+                printf '  %-34s FAIL  %3ss  (%s)\n' "$g" "$_dur" "$BBH_DETAIL"
             else
                 printf '  %-34s FAIL  %3ss  (exit 0 after a shell error)\n' "$g" "$_dur"
             fi
@@ -135,8 +170,41 @@ run_tier() {  # run_tier <label> <names>
             n_skip=$((n_skip + 1)); skipped="$skipped $g" ;;
         *)
             printf '  %-34s PASS  %3ss\n' "$g" "$_dur"
-            n_pass=$((n_pass + 1)) ;;
+            n_pass=$((n_pass + 1))
+            # an `if`, not `[ ] &&`: this is the loop's last command and the
+            # runner is set -e — a false test here would end the tier
+            if [ "${BBH_CTL_DECLARED:-0}" != 0 ]; then exec_controls "$g" "$_label"; fi ;;
         esac
+    done
+}
+
+# EXECUTABLE CONTROLS. For a PASSING gate with declarations, run it once per
+# declared name under `CONTROL=<name>` and require its OWN FAIL. The verdicts
+# (lib/sh/classify.sh, bbh_classify_control): HONOURED, LIES, REFUSED, DIED,
+# TIMEOUT. Every row lands in the tally as a failure when it is not HONOURED.
+exec_controls() {  # exec_controls <gate> <tier-label>
+    case "$EXEC_CTL" in
+    none) return 0 ;;
+    portable) [ "$2" = portable ] || return 0 ;;
+    all) ;;
+    *) echo "bad --exec-controls '$EXEC_CTL'" >&2; exit 2 ;;
+    esac
+    for _n in $(bbh_ctl_declared "$GATES_DIR/$1.sh"); do
+        _c0=$(date +%s)
+        CONTROL="$_n" "$GATES_DIR/$1.sh" </dev/null > "$WORK/$1.ctl.$_n.out" 2>&1 && _cs=0 || _cs=$?
+        _c1=$(date +%s); _cd=$((_c1 - _c0))
+        bbh_classify_control "$_cs" "$WORK/$1.ctl.$_n.out"; _cv="$BBH_CTL_EXEC"
+        printf '%s\t%s\t%s\t%s\n' "$1" "$_n" "$_cv" "$_cd" >> "$WORK/controls.tsv"
+        case "$_cv" in
+        HONOURED) x_ok=$((x_ok + 1)) ;;
+        LIES)     x_lies=$((x_lies + 1)) ;;
+        REFUSED)  x_refused=$((x_refused + 1)) ;;
+        *)        x_died=$((x_died + 1)) ;;
+        esac
+        if [ "$_cv" != HONOURED ]; then
+            n_fail=$((n_fail + 1)); failed="$failed $1(control:$_n:$_cv)"
+            printf '  %-34s CONTROL %s: %s — %s (%ss)\n' "$1" "$_cv" "$_n" "$BBH_CTL_EXEC_DETAIL" "$_cd"
+        fi
     done
 }
 
@@ -211,6 +279,26 @@ $(grep '^NOTE: ' "$_f" 2>/dev/null || true)
 EOF
 done
 [ "$_notes" = 0 ] && echo "  (none)"
+
+# THE CONTROLS READOUT. `fired / declared` is the number a maintainer asks
+# for; the executable rows are what makes FIRED more than a self-report.
+# Undeclared gates are a NOTE-class count (a consumer's grammar may postdate
+# most of its suite); a red control is already in the tally above. Printed
+# only when the tier DECLARED or EXECUTED anything: a tree with no
+# `# MUST-FIRE:` line prints nothing here, so a consumer that has not adopted
+# the grammar sees the runner it always had, byte for byte.
+_xn=$((x_ok + x_lies + x_refused + x_died))
+if [ $((c_decl + c_none + _xn)) != 0 ]; then
+echo
+echo "== must-fire controls =="
+echo "  read:     fired $c_fired / declared $c_decl  (gates declaring none: $c_none; undeclared: $c_undecl)"
+if [ "$EXEC_CTL" = none ]; then
+    echo "  executed: (off — --exec-controls none)"
+else
+    echo "  executed: $_xn  honoured $x_ok  lies $x_lies  refused $x_refused  died $x_died  (--exec-controls $EXEC_CTL)"
+    awk -F'\t' '$3 != "HONOURED" {printf "      %-30s %-24s %s\n", $1, $2, $3}' "$WORK/controls.tsv"
+fi
+fi
 
 echo
 echo "======================================================================"
