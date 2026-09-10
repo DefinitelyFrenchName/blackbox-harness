@@ -38,7 +38,7 @@ for the wrong reason is a failure.
 ## Quick start
 
 ```sh
-git clone https://github.com/DefinitelyFrenchName/blackbox-harness ~/Developer/blackbox-harness
+git clone https://github.com/DefinitelyFrenchName/BBH-frame-based ~/Developer/blackbox-harness   # renamed 2026-09-10; the old name redirects
 cd ~/Developer/blackbox-harness
 bin/bbh selftest                      # the harness's own gates, ~6 min with the lineage tree present (350 s measured 2026-09-07; its fidelity checks SKIP without it, ~2 min); BBH_FIDELITY_F5=1: every masked spec, +3 min
 cd example && ../bin/bbh run-static   # the example consumer, GREEN
