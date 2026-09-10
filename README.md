@@ -3,7 +3,7 @@
 A test harness for BLACK-BOX systems under deterministic, scripted input —
 an emulated arcade board, a console, a simulator, a firmware image, anything
 that can be driven frame by frame and whose state can be hashed. It was
-extracted from Project VAMPIRE SAVED (a CPS-2 ROM hack with 304 gates, 4,000
+extracted from Project VAMPIRE SAVED (a CPS-2 ROM hack with, at extraction in 2026-09, 304 gates and 4,000
 frozen expectations and a release policy of "anything red, anything skipped
 is a hard fail") by asking of every piece: *would this still be true if the
 thing under test were not that ROM, not CPS-2, not even a game?* What

@@ -2,7 +2,7 @@
 
 The README states the doctrine in seven sentences. This page is the long
 form: for each, the rule, the incident that made it law in the lineage
-(Project VAMPIRE SAVED, a CPS-2 ROM hack with 304 gates and 4,000 frozen
+(Project VAMPIRE SAVED, a CPS-2 ROM hack with — at extraction, 2026-09 — 304 gates and 4,000 frozen
 expectations), and the MECHANISM in this harness that enforces it — because
 a doctrine that is only prose is a doctrine nobody runs. It is lean on
 purpose: every paragraph carries one rule, and the incidents' full record

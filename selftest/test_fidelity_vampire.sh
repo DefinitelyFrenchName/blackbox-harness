@@ -193,7 +193,7 @@ done
 if [ -n "${ROMDIR:-}" ] && [ -d "$ROMDIR" ]; then
     n6=0; d6=0
     if [ "${BBH_FIDELITY_F6:-}" = all ]; then dirs="$(ls -d "$V"/build/*/rompath 2>/dev/null)"
-    else dirs="$V/build/m3b_merged25/rompath $V/build/don_stage4_m20/rompath $V/build/merged1/rompath"; fi
+    else dirs="$V/build/m3b_merged26/rompath $V/build/don_stage4_m20/rompath $V/build/merged1/rompath"; fi
     for rp in "$ROMDIR" $dirs; do
         [ -d "$rp" ] || continue
         set6=vsavj; [ -f "$rp/vsavjw.zip" ] && set6=vsavjw
