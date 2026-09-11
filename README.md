@@ -1,6 +1,6 @@
-# blackbox-harness (`bbh`)
+# Frame-based Blackbox Harness (`bbh`)
 
-A test harness for BLACK-BOX systems under deterministic, scripted input —
+A test harness for BLACK BOX systems under deterministic, scripted input —
 an emulated arcade board, a console, a simulator, a firmware image, anything
 that can be driven frame by frame and whose state can be hashed. It was
 extracted from Project VAMPIRE SAVED (a CPS-2 ROM hack with, at extraction in 2026-09, 304 gates and 4,000
