@@ -41,6 +41,10 @@ skip_regex = '^ *SKIP'
 shell_error_regex = '\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: '
 timeout_exits = [124, 137]
 fail_tail = 4
+# where a FAILING gate's full log is kept (relative to the run's cwd); only the
+# current run's logs survive, and a self-test driving the runner from a throwaway
+# root keeps its deliberate failures there rather than in a shared path
+fail_logs = "build/gate_failures_static"
 
 [thresholds]
 flicker_max = 2

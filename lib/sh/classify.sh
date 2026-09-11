@@ -122,5 +122,6 @@ bbh_classify_env() {
     BBH_CLASSIFY_SHELL_ERROR_RE="$(bbh_cfg classify.shell_error_regex)"
     BBH_CLASSIFY_TIMEOUT_EXITS="$(bbh_cfg classify.timeout_exits | tr '\n' ' ')"
     BBH_CLASSIFY_FAIL_TAIL="$(bbh_cfg classify.fail_tail)"
-    export BBH_CLASSIFY_SKIP_RE BBH_CLASSIFY_SHELL_ERROR_RE BBH_CLASSIFY_TIMEOUT_EXITS BBH_CLASSIFY_FAIL_TAIL
+    BBH_CLASSIFY_FAIL_LOGS="$(bbh_cfg classify.fail_logs)"
+    export BBH_CLASSIFY_SKIP_RE BBH_CLASSIFY_SHELL_ERROR_RE BBH_CLASSIFY_TIMEOUT_EXITS BBH_CLASSIFY_FAIL_TAIL BBH_CLASSIFY_FAIL_LOGS
 }

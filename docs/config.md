@@ -59,6 +59,7 @@ a literal the lineage carried in source that is a consumer VALUE.
 | `shell_error_regex` | `\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: ` | code | exit 0 + a line matching this = FAIL (a crash) |
 | `timeout_exits` | `[124, 137]` | code | exits read as TIMEOUT (the timeout wrapper's) |
 | `fail_tail` | `4` | config | lines of a failing gate's output shown (`FAIL_TAIL` env overrides) |
+| `fail_logs` | `build/gate_failures_static` | config | where a FAILING gate's FULL log is kept, relative to the run's cwd (`BBH_FAIL_LOGS` env overrides). Only the current run's logs survive; a self-test driving the runner from a throwaway root keeps its deliberate failures there |
 
 ## `[thresholds]` — the comparison classes' numbers (H2)
 

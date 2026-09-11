@@ -236,6 +236,7 @@ DEFAULTS = {
         "shell_error_regex": r"\.sh: line [0-9]+: [A-Za-z_][A-Za-z0-9_]*: ",
         "timeout_exits": [124, 137],
         "fail_tail": 4,
+        "fail_logs": "build/gate_failures_static",
     },
 }
 

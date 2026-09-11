@@ -104,6 +104,22 @@ if [ "$LIST" = 1 ]; then
 fi
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT INT TERM
+# A FAILING GATE'S FULL LOG SURVIVES THE RUN. $WORK is a mktemp dir the EXIT
+# trap deletes, so without this a red prints its last few lines and the rest
+# goes with it — and `FAIL: see above` is often exactly what those lines are.
+# Paid for in the lineage twice (a fidelity gate red inside the tier and green
+# alone, with no surviving evidence both times) before the capability existed.
+# The path is RELATIVE to the runner's working directory, so a self-test that
+# drives this runner from a throwaway root writes its DELIBERATE failures
+# there and never into a shared evidence path. Only the current run's logs are
+# kept: stale ones reading as current is the same trap in a different hat.
+KEEP="${BBH_FAIL_LOGS:-${BBH_CLASSIFY_FAIL_LOGS:-build/gate_failures_static}}"
+rm -f "$KEEP"/*.log 2>/dev/null || true
+keep_log() {  # keep_log <gate> — preserve the full output, and say where
+    if mkdir -p "$KEEP" 2>/dev/null && cp "$WORK/$1.out" "$KEEP/$1.log" 2>/dev/null; then
+        printf '        | (full log: %s)\n' "$KEEP/$1.log"
+    fi
+}
 n_pass=0; n_skip=0; n_fail=0; n_miss=0
 failed=""; skipped=""
 # the controls ledger: declared / fired over the tier, the undeclared count,
@@ -150,6 +166,7 @@ run_tier() {  # run_tier <label> <names>
         case "$BBH_VERDICT" in
         TIMEOUT)
             printf '  %-34s TIMEOUT %3ss  (exit %s)\n' "$g" "$_dur" "$_st"
+            keep_log "$g"
             n_fail=$((n_fail + 1)); failed="$failed $g" ;;
         FAIL)
             if [ "$_st" != 0 ]; then
@@ -164,6 +181,7 @@ run_tier() {  # run_tier <label> <names>
             # from the config; a red read remotely needs the section that
             # failed, not the last four lines of its controls).
             tail -"${FAIL_TAIL:-${BBH_CLASSIFY_FAIL_TAIL:-4}}" "$WORK/$g.out" | sed 's/^/        | /'
+            keep_log "$g"
             n_fail=$((n_fail + 1)); failed="$failed $g" ;;
         SKIP)
             printf '  %-34s SKIP  %3ss  %s\n' "$g" "$_dur" "$BBH_DETAIL"
