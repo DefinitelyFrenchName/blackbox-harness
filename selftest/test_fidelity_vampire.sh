@@ -76,7 +76,14 @@ rc=0
 ok()   { printf '  ok    %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; rc=1; }
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT INT TERM
-norm() { sed -E 's/ +[0-9]+s( |$)/ Ns\1/g'; }
+# A WALL-CLOCK DURATION IS NOT VERDICT TEXT ([BBH-81]): it is masked before the
+# two runners are diffed, exactly as a mask takes a volatile byte out of a hash.
+# The column form `PASS 1s` was masked from the start; the `(1s)` SUFFIX the
+# controls readout appends was NOT, and that gap is the whole of the intermittent
+# F1 red this test showed three times (14z-149, 14z-150, 14z-151): when one
+# runner's stub gate straddled a second boundary and the other's did not, two
+# identical verdicts differed by one character.
+norm() { sed -E 's/ +[0-9]+s( |$)/ Ns\1/g; s/\(([0-9]+)s\)/(Ns)/g'; }
 
 echo "== F1. both static runners over one synthetic fake repo =="
 FR="$T/fake"; mkdir -p "$FR/tests/lib"; ln -s "$V/tests/run_all_static.sh" "$FR/tests/run_all_static.sh"
