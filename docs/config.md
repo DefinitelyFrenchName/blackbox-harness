@@ -27,11 +27,11 @@ a literal the lineage carried in source that is a consumer VALUE.
 | `root` | `"."` | config | the consumer tree, relative to the config file |
 | `gates_dir` | `"tests"` | config | where the gates live |
 | `gate_glob` | `"*.sh"` | config | what a gate file is called |
-| `lib_dir` | `"tests/lib"` | config | sourced libs (H1 documents it; H5 uses it) |
+| `lib_dir` | `"tests/lib"` | config | sourced libs (the gate contract documents it; the hygiene tools use it) |
 | `runner_prefixes` | `["run_"]` | config | names the anti-orphan report ignores (runners) |
 | `manual_suffixes` | `["_soak"]` | config | names it ignores (deliberately manual) |
-| `tools_dir` | `"tools"` | config | for shadow tools (H5) |
-| `shadow_link_dirs` | `["build","tests","docs"]` | config | dirs symlinked beside a shadow tool (H5) |
+| `tools_dir` | `"tools"` | config | for shadow tools |
+| `shadow_link_dirs` | `["build","tests","docs"]` | config | dirs symlinked beside a shadow tool |
 | `instrument_word` | `"emulator"` | config | the noun the reports use ("emulator-free gate") |
 
 ## `[registries]`
@@ -40,7 +40,7 @@ a literal the lineage carried in source that is a consumer VALUE.
 |---|---|---|---|
 | `portable` | `"tests/ci_portable.txt"` | config | gates a clean checkout can run; one name per line, `#` comments |
 | `static` | `"tests/ci_static.txt"` | config | gates needing the reference input or a build dir, no instrument |
-| `sweep` | `"tests/ci_emulator.tsv"` | config | the instrument-tier registry (H4) |
+| `sweep` | `"tests/ci_emulator.tsv"` | config | the instrument-tier registry |
 | `static_needs_env` | `"ROMDIR"` | config | the variable whose presence enables the static tier; its value is made ABSOLUTE at the entrance; `""` = always run |
 
 ## `[tier]` — the transitive "needs an instrument" classifier
@@ -61,7 +61,7 @@ a literal the lineage carried in source that is a consumer VALUE.
 | `fail_tail` | `4` | config | lines of a failing gate's output shown (`FAIL_TAIL` env overrides) |
 | `fail_logs` | `build/gate_failures_static` | config | where a FAILING gate's FULL log is kept, relative to the run's cwd (`BBH_FAIL_LOGS` env overrides). Only the current run's logs survive; a self-test driving the runner from a throwaway root keeps its deliberate failures there |
 
-## `[thresholds]` — the comparison classes' numbers (H2)
+## `[thresholds]` — the comparison classes' numbers
 
 **[BBH-64]** Read by `lib/py/bbh/thresholds.py` through `BBH_CONFIG` and nowhere else;
 every comparator and the proposer import from there. These are a
@@ -74,7 +74,7 @@ reviewed edit of the config.
 | `reconverge` | `60` | config (policy) | identical frames required after the last divergence (the non-propagation proof; intra-mechanism) |
 | `flicker_max_total` | `8` | config (policy) | the cap on a flicker INVENTORY; never applied to a window run |
 
-## `[suite]` — the expectation tree and the suite runner (H2 reads three keys; H3 the rest)
+## `[suite]` — the expectation tree and the suite runner (the comparison classes read three keys, the runner the rest)
 
 | key | default | origin | meaning |
 |---|---|---|---|
@@ -82,7 +82,7 @@ reviewed edit of the config.
 | `expected_dir` | `"tests/expected"` | config | the expectation tree: `<set>/<name>.{masked,skip,sha1,pending}`, `<set>/mask`, `<basis>/MASK`, `<basis>/logs/<name>.log` |
 | `mask_default` | `"043c-043d,4182-41a2,7f00-8000"` | config | the mask a set without its own `mask` file runs under (offsets from the machine profile's RAM window base); exported to `masked_compare.sh` as `BBH_MASK_DEFAULT` |
 
-The rest of `[suite]` is the SUITE RUNNER's (`bbh run-suite`, H3):
+The rest of `[suite]` is the SUITE RUNNER's (`bbh run-suite`):
 
 | key | default | origin | meaning |
 |---|---|---|---|
@@ -96,7 +96,7 @@ The rest of `[suite]` is the SUITE RUNNER's (`bbh run-suite`, H3):
 | `hermetic_unset` | the lineage's eight (`POKES DUMPS SNAP_FRAMES TAIL_FRAMES VIDEO_OUT INPUT_OUT INPUT_INJECT_TEST NO_INPUT_CHECK`) | code | scrubbed from the environment before any driver runs, so nothing from the caller's shell reaches a frozen log |
 | `hash_cmd` | `"shasum"` | config | prints `<hex> <file>`; the `.sha1` kind's hash (`sha1sum` on Linux) |
 
-## `[fingerprint]` — build identity → expectation set (H3)
+## `[fingerprint]` — build identity → expectation set
 
 Read by `lib/py/bbh/fingerprint.py` through `--config` or `BBH_CONFIG`.
 
@@ -110,7 +110,7 @@ Read by `lib/py/bbh/fingerprint.py` through `--config` or `BBH_CONFIG`.
 | `file_pattern` | `"{set}.bin"` | config | kind `file-sha1`: the image's file name |
 | `program_command`, `wholeset_command` | `""` | config | kind `command`: shell commands printing the keys, `{rompath}` and `{set}` substituted |
 
-## `[sweep]` — the instrument-tier sweep (`bbh run-sweep`, H4)
+## `[sweep]` — the instrument-tier sweep (`bbh run-sweep`)
 
 **[BBH-68]** The registry is `[registries].sweep`: `gate <TAB> lane <TAB> scope <TAB>
 cadence <TAB> args <TAB> note [<TAB> timeout]`. The vocabularies of the
@@ -141,7 +141,7 @@ lane, scope and cadence columns are these keys.
 | `scratch_default` | `"vampire-saved-jtsim"` | config | under `${TMPDIR:-/tmp}` when the variable is unset |
 | `prereq_cite` | `"[CPE-24]"` | config | **[BBH-70]** the citation appended to the prereq STOP text ("a measurement taken after a moved instrument is not evidence"); the default is the lineage's rule ID for exactly that sentence, meaningful only there — a consumer names its own rule or sets `""` (the example does) |
 
-## `[gate_header]` — THE HEADER CONTRACT and THE GATE INDEX (`bbh gate-index`, H5)
+## `[gate_header]` — THE HEADER CONTRACT and THE GATE INDEX (`bbh gate-index`)
 
 Read by `lib/py/bbh/gate_header.py` (the one header parser) and
 `gen_gate_index.py`. A gate's header is every `#` line after the shebang;
@@ -166,7 +166,7 @@ registries' file stems (`ci_portable`, `ci_static`) and
 `[project].instrument_word`; a static gate's derived `needs` is
 `[registries].static_needs_env`.
 
-## `[header_defaults]` — a header names the default its code uses (`bbh header-defaults`, H5)
+## `[header_defaults]` — a header names the default its code uses (`bbh header-defaults`)
 
 | key | default | origin | meaning |
 |---|---|---|---|
@@ -179,7 +179,7 @@ Backticked tokens and a token followed by `<` (a template) are exempt by
 code. `--fix` rewrites a mechanical mismatch when the code has exactly one
 default and refuses to guess otherwise.
 
-## `[ref_rot]` — a hard-coded path default must not have rotted (`bbh ref-rot`, H5)
+## `[ref_rot]` — a hard-coded path default must not have rotted (`bbh ref-rot`)
 
 | key | default | origin | meaning |
 |---|---|---|---|
@@ -197,7 +197,7 @@ default and refuses to guess otherwise.
 The registry is `[suite].registry` and the program key is
 `[fingerprint]`'s. Currency is REPORTED, never failed; only ROTTED exits 1.
 
-## `[provenance]` — every frozen expectation file says where its numbers came from (`bbh provenance`, H5)
+## `[provenance]` — every frozen expectation file says where its numbers came from (`bbh provenance`)
 
 | key | default | origin | meaning |
 |---|---|---|---|
@@ -207,14 +207,14 @@ The registry is `[suite].registry` and the program key is
 | `evidence_classes` | the lineage's seven | config (policy) | the CLOSED vocabulary a `rests on` cell must name (as a substring) |
 | `rests_on_column` | `4` | config | which table column is `rests on` |
 
-## `[project]` keys used by `lib/sh/shadow_tools.sh` (H5)
+## `[project]` keys used by `lib/sh/shadow_tools.sh`
 
 `tools_dir` and `shadow_link_dirs` reach the sh lib as `BBH_TOOLS_DIR` and
 `BBH_SHADOW_LINK_DIRS` (space-separated), exported by a runner or set by
 the gate; `REPO` or `BBH_ROOT` names the real root. `lib/sh/accounting.sh`
 has no keys: it reads the classifier's `BBH_CLASSIFY_*`.
 
-## `[fields]` — mapped fields at sync anchors, and dump completeness (`bbh compare-fields`, `bbh check-dumps`, H7)
+## `[fields]` — mapped fields at sync anchors, and dump completeness (`bbh compare-fields`, `bbh check-dumps`)
 
 The dual-implementation protocol: two implementations of one machine
 traverse identical states on different frame indices, so the comparable
@@ -233,7 +233,7 @@ the lineage; here they are the consumer's.
 | `settle` | `120` | config (policy) | `settled` fields are compared at offsets ≥ this (`--settle` overrides) |
 | `integrity_hint` | the lineage's two lines | config | printed under `DUMP INTEGRITY FAILED` |
 
-## `[skills]` and `[skill_<PFX>]` — the skills lock and the guide generator (`bbh check-skills`, `bbh skill-guide`, H10)
+## `[skills]` and `[skill_<PFX>]` — the skills lock and the guide generator (`bbh check-skills`, `bbh skill-guide`)
 
 A SKILL is an agent-facing distillation of the docs that loads BEFORE the
 work; a stale one is a confidently wrong instruction. Every rule
@@ -267,13 +267,13 @@ The harness's own skill is `skill/skills.toml` (`[project] root = ".."`);
 the lineage's eight are the `[skills]` section of
 `example/consumers/bbh.vampire.toml`, generated from its checker's table.
 
-## `[machine]` — the machine profile the MAME drivers run under (H6)
+## `[machine]` — the machine profile the MAME drivers run under
 
 | key | default | origin | meaning |
 |---|---|---|---|
 | `profile` | **none** | config | **[BBH-65]** a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; with neither, nothing is exported and a MAME driver REFUSES to run. There is deliberately no default: a board is never implied (the example omits the section — its fake driver needs none). The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
 
-## `[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`, H6)
+## `[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`)
 
 **[BBH-69]** A RECORDING is `<corpus_dir>/<name>/{<name>.inp, nvram/, NOTE[, DEFECT]}`:
 the emulator's own input recording, the fresh nvram it started from, a

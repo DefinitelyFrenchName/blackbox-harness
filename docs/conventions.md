@@ -63,7 +63,7 @@ default — `README.md` states it.)
 
 8. **[BBH-83]** **The fidelity contract's text is never changed silently.** Ruled
    2026-09-07, replacing the extraction-era rule "no verdict-string change
-   before the last slice is green" (expired by its own terms at H9). A
+   before the last slice is green" (expired by its own terms when the last one landed). A
    verdict-text or classifier change lands on BOTH sides in one sitting,
    the fidelity rows it moves re-baselined in the same commits, the harness
    commit pushed BEFORE the consumer's — and it is LOUD: a dated line in

@@ -182,7 +182,7 @@ ground truth is `selftest/test_controls.sh` with the runners' selftests.
 checkout) or `ci_static.txt` (needs the input the consumer names in
 `[registries].static_needs_env`, or a build dir, but no instrument). A gate
 that reaches an instrument — directly, or through a sourced lib — belongs to
-the sweep registry (H4) and to neither plain one. `bbh run-static` reports
+the sweep registry and to neither plain one. `bbh run-static` reports
 every instrument-free gate that is in neither; `bbh run-sweep --strict`
 fails on an unregistered instrument gate and on a registered gate that no
 longer exists. That report is the anti-orphan mechanism: without it a runner

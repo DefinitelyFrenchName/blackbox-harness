@@ -18,6 +18,6 @@ a measurement.** The evidence classes of this consumer:
 - `measured (two runs compared)` — two driver runs under the mask,
   compared, then kept as a basis.
 
-| file | owner | subject | rests on | re-freeze | since |
-|---|---|---|---|---|---|
-| `registry.tsv` | `bbh run-suite` | which image fingerprint dispatches to which expectation set | registry | rows are added by hand when an image is frozen (`bbh fingerprint --sha-only` / `--set-key`) | H3 |
+| file | owner | subject | rests on | re-freeze |
+|---|---|---|---|---|
+| `registry.tsv` | `bbh run-suite` | which image fingerprint dispatches to which expectation set | registry | rows are added by hand when an image is frozen (`bbh fingerprint --sha-only` / `--set-key`) |

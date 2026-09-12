@@ -313,7 +313,7 @@ harness tree at load time.
 > checkout) or `ci_static.txt` (needs the input the consumer names in
 > `[registries].static_needs_env`, or a build dir, but no instrument). A gate
 > that reaches an instrument — directly, or through a sourced lib — belongs to
-> the sweep registry (H4) and to neither plain one. `bbh run-static` reports
+> the sweep registry and to neither plain one. `bbh run-static` reports
 > every instrument-free gate that is in neither; `bbh run-sweep --strict`
 > fails on an unregistered instrument gate and on a registered gate that no
 > longer exists. That report is the anti-orphan mechanism: without it a runner
@@ -323,7 +323,7 @@ harness tree at load time.
 
 > **Incident** (`README.md` › *What it gives a consumer project*):
 >
-> | **the tier classifier** (`bbh tier`) | which gates reach an instrument — transitively, through sourced libs — so none falls between the runners | H1 |
+> | **the tier classifier** (`bbh tier`) | which gates reach an instrument — transitively, through sourced libs — so none falls between the runners |
 
 **[BBH-24]** **The harness will NOT read a gate's code, guess a skip from prose, count a self-skip as a pass, edit a running script, or weaken its classifier to make a consumer green:** a delta between the harness's classifier and a consumer's older one is a FINDING about the consumer.
 
@@ -382,7 +382,7 @@ harness tree at load time.
 > The guard family — `GUARD_DEBUG`, `GUARD_PROBE`, `GUARD_PROBE_COND`,
 > `GUARD_TRACE`, `GUARD_PC_LOG`, `GUARD_BREAK`, `GUARD_MATCH`,
 > `CRASH_VECTORS`, `CODE_RANGES` — belongs to the GUARDED drivers
-> (`mame_guarded.sh`, H6). A plain driver REFUSES them.
+> (`mame_guarded.sh`). A plain driver REFUSES them.
 
 **[BBH-30]** **A masked log is a BASIS:** masked bytes are SKIPPED from the hash, so a log under one mask is never comparable to a log under another, and a driver whose log is not checksum-comparable (a debug-timeline guard) refuses a mask rather than emit a log a gate would compare.
 
@@ -436,7 +436,7 @@ harness tree at load time.
 
 > **Incident** (`drivers/README.md` › *5. The drivers here*):
 >
-> | `fbneo.sh` | a patched FBNeo frontend carrying the replay harness (`-hinput/-hout/-hdump`, `FBNEO_HPOKE`, `FBNEO_HVIDEO`) — a SECOND implementation of the same machine | `FBNEO_ROMPATH` (first wins; `ROMDIR` always last), built as a symlink overlay because the frontend has no `-rompath`; `FBNEO_BIN` required | maps `DUMPS` to `-hdump` (files `<out>.dump_<f>_<a>.bin`), `POKES` to `FBNEO_HPOKE`, `VIDEO_OUT` to `FBNEO_HVIDEO`; refuses `MASK_RANGES`, `SNAP_FRAMES`, `INPUT_OUT`, `INPUT_INJECT_TEST`, `NO_INPUT_CHECK`, a `TAIL_FRAMES` other than the frontend's 120, and the guard family (H6) |
+> | `fbneo.sh` | a patched FBNeo frontend carrying the replay harness (`-hinput/-hout/-hdump`, `FBNEO_HPOKE`, `FBNEO_HVIDEO`) — a SECOND implementation of the same machine | `FBNEO_ROMPATH` (first wins; `ROMDIR` always last), built as a symlink overlay because the frontend has no `-rompath`; `FBNEO_BIN` required | maps `DUMPS` to `-hdump` (files `<out>.dump_<f>_<a>.bin`), `POKES` to `FBNEO_HPOKE`, `VIDEO_OUT` to `FBNEO_HVIDEO`; refuses `MASK_RANGES`, `SNAP_FRAMES`, `INPUT_OUT`, `INPUT_INJECT_TEST`, `NO_INPUT_CHECK`, a `TAIL_FRAMES` other than the frontend's 120, and the guard family |
 
 ## 4. The oracle classes
 
@@ -615,7 +615,7 @@ harness tree at load time.
 
 **[BBH-56]** **A pick among several files is sorted first and then an ORDERED, NAMED preference;** a verdict that depends on which file the filesystem lists first is a verdict about the filesystem.
 
-> **Incident** (`docs/config.md` › *`[ref_rot]` — a hard-coded path default must not have rotted (`bbh ref-rot`, H5)*):
+> **Incident** (`docs/config.md` › *`[ref_rot]` — a hard-coded path default must not have rotted (`bbh ref-rot`)*):
 >
 > | `image_prefer` | `["vsavjw", "vsavj"]` | config | substrings, in order, choosing among several images; else the first by name (the lineage took directory order) |
 
@@ -684,7 +684,7 @@ harness tree at load time.
 
 **[BBH-64]** **The thresholds are a consumer's RATIFIED comparison policy, not tuning knobs:** changing one is a reviewed edit of the config, and the comparators and the proposer read them from one place.
 
-> **Incident** (`docs/config.md` › *`[thresholds]` — the comparison classes' numbers (H2)*):
+> **Incident** (`docs/config.md` › *`[thresholds]` — the comparison classes' numbers*):
 >
 > Read by `lib/py/bbh/thresholds.py` through `BBH_CONFIG` and nowhere else;
 > every comparator and the proposer import from there. These are a
@@ -693,7 +693,7 @@ harness tree at load time.
 
 **[BBH-65]** **A board is never implied:** the machine-profile key has NO default, nothing is exported without one, and a driver that needs a profile REFUSES to run without it — the example consumer omits the section because its fake machine runs no Lua.
 
-> **Incident** (`docs/config.md` › *`[machine]` — the machine profile the MAME drivers run under (H6)*):
+> **Incident** (`docs/config.md` › *`[machine]` — the machine profile the MAME drivers run under*):
 >
 > | `profile` | **none** | config | a name under `lua/mame/profiles/` (`cps2`, `cps2w`, or a consumer's own by path). `bbh run-suite` exports it as `BBH_PROFILE` when the caller has not set one; with neither, nothing is exported and a MAME driver REFUSES to run. There is deliberately no default: a board is never implied (the example omits the section — its fake driver needs none). The profile's keys are `docs/lua.md` and `lua/mame/profiles/TEMPLATE.lua` |
 
@@ -714,13 +714,13 @@ harness tree at load time.
 
 **[BBH-67]** **Registry rows are written only at freeze time, as a build decision** — `sha1 <TAB> expectation-set <TAB> notes` — so an image the registry does not know is refused loudly rather than run against a guessed set.
 
-> **Incident** (`docs/config.md` › *`[suite]` — the expectation tree and the suite runner (H2 reads three keys; H3 the rest)*):
+> **Incident** (`docs/config.md` › *`[suite]` — the expectation tree and the suite runner (the comparison classes read three keys, the runner the rest)*):
 >
 > | `registry` | `"tests/expected/registry.tsv"` | config | `sha1 <TAB> expectation-set <TAB> notes`; `#` comments; rows only at freeze time, as a build decision |
 
 **[BBH-68]** **The sweep registry declares a release's instrument scope:** one row per instrument gate with lane, scope, cadence, args and an optional per-row timeout; `out` never means "do not run", the prereq lane runs first and serially and a red there STOPS the run, and a gate's args default to its OWN defaults because what a release would actually hit is what the sweep must measure.
 
-> **Incident** (`docs/config.md` › *`[sweep]` — the instrument-tier sweep (`bbh run-sweep`, H4)*):
+> **Incident** (`docs/config.md` › *`[sweep]` — the instrument-tier sweep (`bbh run-sweep`)*):
 >
 > The registry is `[registries].sweep`: `gate <TAB> lane <TAB> scope <TAB>
 > cadence <TAB> args <TAB> note [<TAB> timeout]`. The vocabularies of the
@@ -728,7 +728,7 @@ harness tree at load time.
 
 **[BBH-69]** **A recording is a directory of four things** — the emulator's own input recording, the fresh state it started from, a one-line NOTE of what it exercises, and for a captured-but-unfixed crash a DEFECT file naming the expected fault — and the corpus dir, the set and the build under test are the consumer's config, never a silent default.
 
-> **Incident** (`docs/config.md` › *`[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`, H6)*):
+> **Incident** (`docs/config.md` › *`[inp]` — the recording corpus (`bbh inp-corpus`, `bbh inp-play`)*):
 >
 > A RECORDING is `<corpus_dir>/<name>/{<name>.inp, nvram/, NOTE[, DEFECT]}`:
 > the emulator's own input recording, the fresh nvram it started from, a
@@ -738,7 +738,7 @@ harness tree at load time.
 
 **[BBH-70]** **A default that names one host's file, one project's build or one lineage's session is a dated assertion with no expiry:** it is documented as the lineage's literal where it must stay, overridable where it must not, and the example consumer sets its own.
 
-> **Incident** (`docs/config.md` › *`[sweep]` — the instrument-tier sweep (`bbh run-sweep`, H4)*):
+> **Incident** (`docs/config.md` › *`[sweep]` — the instrument-tier sweep (`bbh run-sweep`)*):
 >
 > | `prereq_cite` | `"[CPE-24]"` | config | the citation appended to the prereq STOP text ("a measurement taken after a moved instrument is not evidence"); the default is the lineage's rule ID for exactly that sentence, meaningful only there — a consumer names its own rule or sets `""` (the example does) |
 
@@ -841,7 +841,7 @@ harness tree at load time.
 
 > **Incident** (`README.md` › *What it gives a consumer project*):
 >
-> | **mapped-field comparison at anchors, and dump completeness** (`bbh compare-fields`, `bbh check-dumps`) | the dual-implementation protocol: two implementations traverse identical states on different frame indices, so the comparable thing is the MAPPED state (a fields TSV) at the debounced rising edge of a predicate on the dumped RAM, at the anchor and at offsets after it — `--exact` for same-implementation runs; the predicate, the bases and the debounce are the consumer's `[fields]`; and because the comparator GLOBS, the producer asserts the dump set is complete first (a hole silently moves an anchor) | H7 |
+> | **mapped-field comparison at anchors, and dump completeness** (`bbh compare-fields`, `bbh check-dumps`) | the dual-implementation protocol: two implementations traverse identical states on different frame indices, so the comparable thing is the MAPPED state (a fields TSV) at the debounced rising edge of a predicate on the dumped RAM, at the anchor and at offsets after it — `--exact` for same-implementation runs; the predicate, the bases and the debounce are the consumer's `[fields]`; and because the comparator GLOBS, the producer asserts the dump set is complete first (a hole silently moves an anchor) |
 
 ## 8. Fidelity and conventions
 
@@ -877,7 +877,7 @@ harness tree at load time.
 >
 > 8. **The fidelity contract's text is never changed silently.** Ruled
 >    2026-09-07, replacing the extraction-era rule "no verdict-string change
->    before the last slice is green" (expired by its own terms at H9). A
+>    before the last slice is green" (expired by its own terms when the last one landed). A
 >    verdict-text or classifier change lands on BOTH sides in one sitting,
 >    the fidelity rows it moves re-baselined in the same commits, the harness
 >    commit pushed BEFORE the consumer's — and it is LOUD: a dated line in

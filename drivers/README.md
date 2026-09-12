@@ -42,7 +42,7 @@ back to the reference-input variable (`[suite].input_env`, the lineage's
 **[BBH-29]** The guard family — `GUARD_DEBUG`, `GUARD_PROBE`, `GUARD_PROBE_COND`,
 `GUARD_TRACE`, `GUARD_PC_LOG`, `GUARD_BREAK`, `GUARD_MATCH`,
 `CRASH_VECTORS`, `CODE_RANGES` — belongs to the GUARDED drivers
-(`mame_guarded.sh`, H6). A plain driver REFUSES them.
+(`mame_guarded.sh`). A plain driver REFUSES them.
 
 **[BBH-28]** **THE RULE: a driver that cannot honour a variable REFUSES it — prints
 `REFUSED: <driver> cannot honour <VAR> (<why>)` and exits 3 — and never
@@ -84,10 +84,10 @@ interprets them. The guarded grammar adds `CRASH <frame> <vector> PC <pc>`,
 
 | driver | machine | search path | notes |
 |---|---|---|---|
-| `fake.sh` | `example/fakesys/fakesys.py` | `FAKE_ROMPATH` (or `FAKE_ROOT`) | honours the whole replay family; refuses the guard family; `FAKE_BUILD`, `FAKE_NONDET`, `FAKE_CRASH_AT` are its own knobs (H3) |
-| `mame.sh` | MAME + `lua/mame/replay.lua` under a MACHINE PROFILE (`BBH_PROFILE`, required: a name under `lua/mame/profiles/` or a path) | `MAME_ROMPATH` (falls back to `ROMDIR`); `MAME_BIN` names the binary | honours the whole replay family; refuses the guard family. Headless and sandboxed (`lib/sh/mame_sandbox.sh`): every host input provider off, `SDL_VIDEODRIVER=dummy`, a fresh cfg/nvram/diff/snap/sta/home per run (H6) |
-| `mame_guarded.sh` | MAME + `replay_guard.lua` (crash detection: `-debug` breakpoints on the exception vectors, or cheap-mode PC classification with `GUARD_DEBUG=0`) | as `mame.sh` | honours the guard family; refuses `MASK_RANGES`, `NO_INPUT_CHECK`, `VIDEO_OUT`, `INPUT_OUT`; exit 2 when it trips (H6) |
-| `fbneo.sh` | **[BBH-37]** a patched FBNeo frontend carrying the replay harness (`-hinput/-hout/-hdump`, `FBNEO_HPOKE`, `FBNEO_HVIDEO`) — a SECOND implementation of the same machine | `FBNEO_ROMPATH` (first wins; `ROMDIR` always last), built as a symlink overlay because the frontend has no `-rompath`; `FBNEO_BIN` required | maps `DUMPS` to `-hdump` (files `<out>.dump_<f>_<a>.bin`), `POKES` to `FBNEO_HPOKE`, `VIDEO_OUT` to `FBNEO_HVIDEO`; refuses `MASK_RANGES`, `SNAP_FRAMES`, `INPUT_OUT`, `INPUT_INJECT_TEST`, `NO_INPUT_CHECK`, a `TAIL_FRAMES` other than the frontend's 120, and the guard family (H6) |
+| `fake.sh` | `example/fakesys/fakesys.py` | `FAKE_ROMPATH` (or `FAKE_ROOT`) | honours the whole replay family; refuses the guard family; `FAKE_BUILD`, `FAKE_NONDET`, `FAKE_CRASH_AT` are its own knobs |
+| `mame.sh` | MAME + `lua/mame/replay.lua` under a MACHINE PROFILE (`BBH_PROFILE`, required: a name under `lua/mame/profiles/` or a path) | `MAME_ROMPATH` (falls back to `ROMDIR`); `MAME_BIN` names the binary | honours the whole replay family; refuses the guard family. Headless and sandboxed (`lib/sh/mame_sandbox.sh`): every host input provider off, `SDL_VIDEODRIVER=dummy`, a fresh cfg/nvram/diff/snap/sta/home per run |
+| `mame_guarded.sh` | MAME + `replay_guard.lua` (crash detection: `-debug` breakpoints on the exception vectors, or cheap-mode PC classification with `GUARD_DEBUG=0`) | as `mame.sh` | honours the guard family; refuses `MASK_RANGES`, `NO_INPUT_CHECK`, `VIDEO_OUT`, `INPUT_OUT`; exit 2 when it trips |
+| `fbneo.sh` | **[BBH-37]** a patched FBNeo frontend carrying the replay harness (`-hinput/-hout/-hdump`, `FBNEO_HPOKE`, `FBNEO_HVIDEO`) — a SECOND implementation of the same machine | `FBNEO_ROMPATH` (first wins; `ROMDIR` always last), built as a symlink overlay because the frontend has no `-rompath`; `FBNEO_BIN` required | maps `DUMPS` to `-hdump` (files `<out>.dump_<f>_<a>.bin`), `POKES` to `FBNEO_HPOKE`, `VIDEO_OUT` to `FBNEO_HVIDEO`; refuses `MASK_RANGES`, `SNAP_FRAMES`, `INPUT_OUT`, `INPUT_INJECT_TEST`, `NO_INPUT_CHECK`, a `TAIL_FRAMES` other than the frontend's 120, and the guard family |
 
 The MAME drivers' Lua side, the machine profile and the other instruments
 (taps, snapshots, the recording guard) are `docs/lua.md`.
